@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
     VITE_API_BASE_URL:
       env.VITE_API_BASE_URL ||
       (isLocal
-        ? "http://localhost:3000/api"
+        ? "/api"
         : isDev
           ? "https://dev-api.yourdomain.com/api"
           : isStaging
@@ -81,76 +81,14 @@ export default defineConfig(({ mode }) => {
       // Proxy API requests to backend in development
       proxy: {
         "/api": {
-          target: "http://localhost:3000",
+          target: "http://localhost:5001/api/v1",
           changeOrigin: true,
           secure: false,
-        },
-        "/solar-api": {
-          target: "http://localhost:5001/api/v1/solar",
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => {
-            const newPath = path.replace(/^\/solar-api/, "");
-            console.log("🔄 Solar Proxy rewrite:", path, "->", newPath);
-            return newPath;
-          },
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq, req) => {
-              console.log("🔄 Solar Proxy request:", req.method, req.url);
-              // Add the API key header
-              proxyReq.setHeader(
-                "x-api-key",
-                "dev_3fdc0b61c47991ef925c5c75b9ea36327538daf7e57a1034cb0721d7d43abb0d"
-              );
-              proxyReq.setHeader("accept", "application/json");
-              proxyReq.setHeader("Content-Type", "application/json");
-            });
-            proxy.on("proxyRes", (proxyRes) => {
-              console.log(
-                "🔄 Solar Proxy response status:",
-                proxyRes.statusCode
-              );
-              console.log("🔄 Solar Proxy response headers:", proxyRes.headers);
-            });
-            proxy.on("error", (err) => {
-              console.error("❌ Solar Proxy error:", err);
-            });
-          },
-        },
-        "/wind-api": {
-          target: "http://localhost:5001/api/v1/solar",
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => {
-            const newPath = path.replace(/^\/wind-api/, "");
-            console.log("🔄 Wind Proxy rewrite:", path, "->", newPath);
-            return newPath;
-          },
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq, req) => {
-              console.log("🔄 Wind Proxy request:", req.method, req.url);
-              // Add the API key header
-              proxyReq.setHeader(
-                "x-api-key",
-                "dev_3fdc0b61c47991ef925c5c75b9ea36327538daf7e57a1034cb0721d7d43abb0d"
-              );
-              proxyReq.setHeader("accept", "application/json");
-              proxyReq.setHeader("Content-Type", "application/json");
-            });
-            proxy.on("proxyRes", (proxyRes) => {
-              console.log(
-                "🔄 Wind Proxy response status:",
-                proxyRes.statusCode
-              );
-              console.log("🔄 Wind Proxy response headers:", proxyRes.headers);
-            });
-            proxy.on("error", (err) => {
-              console.error("❌ Wind Proxy error:", err);
-            });
-          },
+          rewrite: (path) => path.replace(/^\/api/, ""),
         },
       },
     },
+
     build: {
       outDir: "dist",
       sourcemap: isLocal || isDev,

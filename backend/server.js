@@ -25,6 +25,14 @@ app.use('/api/v1/auth', require('./routes/auth'));
 app.use('/api/v1/personal', protect, require('./routes/personal'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', server: 'Harsh Personal Backend' }));
+app.get('/health', (_req, res) => {
+    const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({
+        status: 'ok',
+        server: 'Harsh Personal Backend',
+        mongodb: mongoStatus,
+        mongoState: mongoose.connection.readyState
+    });
+});
 
 app.listen(PORT, () => console.log(`🚀  Backend running on http://localhost:${PORT}`));

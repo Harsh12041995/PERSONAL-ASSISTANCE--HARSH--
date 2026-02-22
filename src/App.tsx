@@ -1,7 +1,6 @@
 // App.tsx — Harsh's Personal Command Center
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { JSX, useEffect } from "react";
-import { useAuth } from "./context/AuthContext";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -18,6 +17,7 @@ import SignUp from "./pages/AuthPages/SignUp";
 import AuthRedirect from "./components/AuthRedirect";
 import ResetPasswordPage from "./components/auth/ResetPasswordPage";
 import SetPasswordPage from "./components/auth/SetPasswordPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // ── Personal module pages ─────────────────────────────────────────────────────
 import Home from "./pages/Dashboard/Home";
@@ -41,23 +41,6 @@ function ScrollToTop() {
   return null;
 }
 
-// ── Route guard ───────────────────────────────────────────────────────────────
-const ProtectedRoute = ({ children }: { children: JSX.Element }): JSX.Element => {
-  const { token, isLoading, isInitialized } = useAuth();
-  if (isLoading || !isInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-200">
-            H
-          </div>
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-500" />
-        </div>
-      </div>
-    );
-  }
-  return token ? children : <Navigate to="/signin" replace />;
-};
 
 export default function App() {
   return (
