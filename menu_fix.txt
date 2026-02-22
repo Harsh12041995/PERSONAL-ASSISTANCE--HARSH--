@@ -1,0 +1,103 @@
+// Temporary fix - Complete Menu section with conditional rendering
+{/* Filter Dropdown Menu */}
+<Menu
+  anchorEl={anchorEl}
+  open={isFilterMenuOpen}
+  onClose={handleFilterClose}
+  anchorOrigin={{
+    vertical: 'bottom',
+    horizontal: 'right',
+  }}
+  transformOrigin={{
+    vertical: 'top',
+    horizontal: 'right',
+  }}
+  sx={{
+    '& .MuiPaper-root': {
+      marginTop: '8px',
+      borderRadius: '16px',
+      minWidth: '160px',
+      boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)',
+      border: '1px solid #e7e7e7',
+    },
+    '& .MuiList-root': {
+      padding: '8px',
+    },
+  }}
+>
+  {availableFilters.includes('Overall') && (
+    <MenuItem
+      onClick={() => handleFilterSelect("Overall")}
+      selected={selectedFilter === "Overall"}
+      sx={{
+        fontFamily: "'Bricolage Grotesque', sans-serif",
+        fontVariationSettings: "'opsz' 14, 'wdth' 100",
+        fontSize: '15px',
+        borderRadius: '8px',
+        padding: '10px 16px',
+        margin: '2px 0',
+        '&:hover': {
+          backgroundColor: '#f5f5f5',
+        },
+        '&.Mui-selected': {
+          backgroundColor: '#e8e8e8',
+          '&:hover': {
+            backgroundColor: '#e0e0e0',
+          },
+        },
+      }}
+    >
+      Overall
+    </MenuItem>
+  )}
+  {availableFilters.includes('Wind') && (
+    <MenuItem
+      onClick={() => handleFilterSelect("Wind")}
+      selected={selectedFilter === "Wind"}
+      sx={{
+        fontFamily: "'Bricolage Grotesque', sans-serif",
+        fontVariationSettings: "'opsz' 14, 'wdth' 100",
+        fontSize: '15px',
+        borderRadius: '8px',
+        padding: '10px 16px',
+        margin: '2px 0',
+        '&:hover': {
+          backgroundColor: '#f5f5f5',
+        },
+        '&.Mui-selected': {
+          backgroundColor: '#e8e8e8',
+          '&:hover': {
+            backgroundColor: '#e0e0e0',
+          },
+        },
+      }}
+    >
+      Wind
+    </MenuItem>
+  )}
+  {availableFilters.includes('Solar') && (
+    <MenuItem
+      onClick={() => handleFilterSelect("Solar")}
+      selected={selectedFilter === "Solar"}
+      sx={{
+        fontFamily: "'Bricolage Grotesque', sans-serif",
+        fontVariationSettings: "'opsz' 14, 'wdth' 100",
+        fontSize: '15px',
+        borderRadius: '8px',
+        padding: '10px 16px',
+        margin: '2px 0',
+        '&:hover': {
+          backgroundColor: '#f5f5f5',
+        },
+        '&.Mui-selected': {
+          backgroundColor: '#e8e8e8',
+          '&:hover': {
+            backgroundColor: '#e0e0e0',
+          },
+        },
+      }}
+    >
+      Solar
+    </MenuItem>
+  )}
+</Menu>

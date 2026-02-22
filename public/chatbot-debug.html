@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatbot Debug Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .connected { background: #d4edda; color: #155724; }
+    .disconnected { background: #f8d7da; color: #721c24; }
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    #messages {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      margin: 20px 0;
+    }
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .user { background: #e3f2fd; text-align: right; }
+    .bot { background: #f5f5f5; text-align: left; }
+    .typing { background: #fff3cd; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Chatbot Socket.io Debug Test</h1>
+  
+  <div id="status" class="status disconnected">Disconnected</div>
+  
+  <div>
+    <button onclick="connectSocket()">Connect</button>
+    <button onclick="disconnectSocket()">Disconnect</button>
+    <button onclick="clearMessages()">Clear Messages</button>
+  </div>
+  
+  <div id="messages"></div>
+  
+  <div>
+    <input type="text" id="messageInput" placeholder="Type message..." style="width: 70%; padding: 10px;">
+    <button onclick="sendMessage()" style="padding: 10px 20px;">Send</button>
+  </div>
+  
+  <div style="margin-top: 20px;">
+    <h3>Console Log:</h3>
+    <pre id="log" style="background: #f5f5f5; padding: 10px; height: 200px; overflow-y: auto;"></pre>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    let socket = null;
+    const userId = '691475e7911b9606487feacf';
+    const socketUrl = 'http://13.234.196.105:8080';
+    
+    function log(message) {
+      const logEl = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString();
+      logEl.textContent += `[${timestamp}] ${message}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(message);
+    }
+    
+    function addMessage(content, type) {
+      const messagesEl = document.getElementById('messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+      msgDiv.textContent = content;
+      messagesEl.appendChild(msgDiv);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    
+    function showTyping() {
+      removeTyping();
+      const messagesEl = document.getElementById('messages');
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'message typing';
+      typingDiv.id = 'typing-indicator';
+      typingDiv.textContent = 'Bot is typing...';
+      messagesEl.appendChild(typingDiv);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      log('Typing indicator shown');
+    }
+    
+    function removeTyping() {
+      const typingEl = document.getElementById('typing-indicator');
+      if (typingEl) {
+        typingEl.remove();
+        log('Typing indicator removed');
+      }
+    }
+    
+    function connectSocket() {
+      if (socket?.connected) {
+        log('Already connected');
+        return;
+      }
+      
+      log(`Connecting to ${socketUrl} with userId: ${userId}`);
+      
+      socket = io(socketUrl, {
+        query: { userId },
+        transports: ['websocket', 'polling']
+      });
+      
+      socket.on('connect', () => {
+        log('✅ Connected to Socket.io');
+        document.getElementById('status').className = 'status connected';
+        document.getElementById('status').textContent = 'Connected';
+      });
+      
+      socket.on('connected', (data) => {
+        log(`✅ Authenticated - SocketID: ${data.socketId}`);
+      });
+      
+      socket.on('new_message', (data) => {
+        removeTyping();
+        const msg = data.message;
+        log(`📨 New message from ${msg.sender_type}: ${msg.content}`);
+        addMessage(`${msg.sender_type}: ${msg.content}`, msg.sender_type);
+      });
+      
+      socket.on('user_typing', (data) => {
+        log(`⌨️ User ${data.userId} is typing`);
+        if (data.userId !== userId) {
+          showTyping();
+        }
+      });
+      
+      socket.on('disconnect', (reason) => {
+        log(`❌ Disconnected: ${reason}`);
+        document.getElementById('status').className = 'status disconnected';
+        document.getElementById('status').textContent = 'Disconnected';
+        removeTyping();
+      });
+      
+      socket.on('error', (error) => {
+        log(`🔴 Error: ${JSON.stringify(error)}`);
+      });
+    }
+    
+    function disconnectSocket() {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+        log('Disconnected manually');
+      }
+    }
+    
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim();
+      
+      if (!message) {
+        alert('Please enter a message');
+        return;
+      }
+      
+      if (!socket?.connected) {
+        alert('Not connected. Click Connect first.');
+        return;
+      }
+      
+      log(`📤 Sending message: ${message}`);
+      addMessage(`You: ${message}`, 'user');
+      showTyping();
+      
+      socket.emit('send_bot_message', { message }, (response) => {
+        log(`📥 Response: ${JSON.stringify(response)}`);
+        removeTyping(); // Clear typing indicator immediately
+        
+        if (response.success) {
+          // Bot message is in the callback response!
+          addMessage(`Bot: ${response.bot_message.content}`, 'bot');
+          log(`✅ Bot replied: ${response.bot_message.content}`);
+        } else {
+          log(`❌ Send failed: ${response.error}`);
+        }
+      });
+      
+      input.value = '';
+    }
+    
+    function clearMessages() {
+      document.getElementById('messages').innerHTML = '';
+      log('Messages cleared');
+    }
+    
+    // Enter to send
+    document.getElementById('messageInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+    
+    log('Debug page loaded. Click Connect to start.');
+  </script>
+</body>
+</html>
