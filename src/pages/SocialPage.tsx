@@ -57,7 +57,7 @@ export default function SocialPage() {
         setContacts(prev => prev.filter(c => c._id !== id));
     };
     const touchContact = async (id: string) => {
-        const updated = await socialApi.updateContact(id, { lastTalked: today() });
+        await socialApi.updateContact(id, { lastTalked: today() });
         setContacts(prev => prev.map(c => c._id === id ? { ...c, lastTalked: today() } : c));
     };
 

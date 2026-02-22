@@ -1,13 +1,11 @@
 // App.tsx — Harsh's Personal Command Center
-import { Routes, Route } from "react-router-dom";
-import { Navigate } from "react-router-dom";
-import { JSX } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { JSX, useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Toaster } from "react-hot-toast";
-import { ScrollToTop } from "./shared/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 
@@ -36,20 +34,15 @@ import Calendar from "./pages/Calendar";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/OtherPage/NotFound";
 
-// ── Role management (kept for future multi-user support) ─────────────────────
-import { Roles } from "./features/roles";
-import UserManagement from "./features/user/pages/Users";
-import UserDetails from "./features/user/pages/UserDetails";
-
-// ── Chat widget ───────────────────────────────────────────────────────────────
-import { ChatWidget } from "./components/chat";
+// ── Scroll to top on route change ────────────────────────────────────────────
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
 // ── Route guard ───────────────────────────────────────────────────────────────
-const ProtectedRoute = ({
-  children,
-}: {
-  children: JSX.Element;
-}): JSX.Element => {
+const ProtectedRoute = ({ children }: { children: JSX.Element }): JSX.Element => {
   const { token, isLoading, isInitialized } = useAuth();
   if (isLoading || !isInitialized) {
     return (
@@ -73,7 +66,6 @@ export default function App() {
       <ToastContainer position="top-right" autoClose={3000} />
       <Toaster position="bottom-right" />
       <ScrollToTopButton />
-      <ChatWidget />
 
       <Routes>
         {/* ── Public auth routes ─────────────────────────────────────── */}
@@ -85,10 +77,8 @@ export default function App() {
 
         {/* ── Personal app routes (protected) ────────────────────────── */}
         <Route element={<AppLayout />}>
-          {/* Home */}
           <Route index element={<ProtectedRoute><Home /></ProtectedRoute>} />
 
-          {/* My Life modules */}
           <Route path="/capture" element={<ProtectedRoute><CapturePage /></ProtectedRoute>} />
           <Route path="/personal-tasks" element={<ProtectedRoute><PersonalTasksPage /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
@@ -100,11 +90,6 @@ export default function App() {
           <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
           <Route path="/ai-chat" element={<ProtectedRoute><AiChatPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-
-          {/* System / Admin — kept for future role management */}
-          <Route path="/roles" element={<ProtectedRoute><Roles /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
-          <Route path="/users/:id" element={<ProtectedRoute><UserDetails /></ProtectedRoute>} />
         </Route>
 
         {/* 404 */}

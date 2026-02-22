@@ -12,7 +12,6 @@ interface SelectProps {
 interface SelectTriggerProps {
   children: React.ReactNode;
   className?: string;
-  placeholder?: string;
 }
 
 interface SelectContentProps {
@@ -76,7 +75,6 @@ const Select: React.FC<SelectProps> = ({
 const SelectTrigger: React.FC<SelectTriggerProps> = ({
   children,
   className = "",
-  placeholder,
 }) => {
   return <div className={`relative ${className}`}>{children}</div>;
 };

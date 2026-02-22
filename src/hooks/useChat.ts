@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { chatApiService } from '../services/chat.api';
-import type { Message, ChatState, ConversationType, Conversation } from '../types/chat.types';
+import type { Message, ConversationType, Conversation } from '../types/chat.types';
 
 interface UseChatProps {
   userId: string | null;
@@ -39,7 +39,7 @@ export const useChat = ({
   onNewMessage,
   onUserTyping,
   isWidgetOpen, // NEW
-  currentConversation, // NEW
+  currentConversation: _currentConversation, // NEW: Current conversation details (unused)
 }: UseChatProps): UseChatReturn => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -48,8 +48,7 @@ export const useChat = ({
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedInitialMessages, setHasLoadedInitialMessages] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0); // NEW: Unread counter
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load previous messages when conversation ID is available
@@ -65,24 +64,24 @@ export const useChat = ({
 
     const handleNewMessage = (data: any) => {
       const newMessage = data.message;
-      
+
       // Clear typing indicator immediately when ANY message arrives
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
       setIsTyping(false);
-      
+
       // Increment unread count for bot messages when widget is closed
       if (newMessage.sender_type === 'bot' && !isWidgetOpen) {
         setUnreadCount((prev) => prev + 1);
       }
-      
+
       // Add message if not already in the list (avoid duplicates)
       setMessages((prev) => {
         const exists = prev.some((msg) => msg._id === newMessage._id);
         if (exists) return prev;
-        
+
         // Remove optimistic message if this is the real version
         // Optimistic messages have temp IDs and matching content
         const withoutOptimistic = prev.filter(msg => {
@@ -94,7 +93,7 @@ export const useChat = ({
           }
           return true;
         });
-        
+
         return [...withoutOptimistic, newMessage];
       });
 
@@ -108,7 +107,7 @@ export const useChat = ({
       // Show typing indicator for bot
       if (data.userId !== userId) {
         setIsTyping(true);
-        
+
         // Auto-hide typing indicator after 3 seconds
         if (typingTimeoutRef.current) {
           clearTimeout(typingTimeoutRef.current);
@@ -132,13 +131,13 @@ export const useChat = ({
   // Load initial messages when conversationId changes
   useEffect(() => {
     if (!conversationId || !userId || hasLoadedInitialMessages) return;
-    
+
     // Join the conversation room via socket
-    if (isSocketConnected && window.socketService) {
+    if (isSocketConnected && (window as any).socketService) {
       console.log('🔗 Joining conversation room:', conversationId);
-      window.socketService.joinConversation(conversationId);
+      (window as any).socketService.joinConversation(conversationId);
     }
-    
+
     loadInitialMessages();
   }, [conversationId, userId, hasLoadedInitialMessages, isSocketConnected]);
 
@@ -147,9 +146,9 @@ export const useChat = ({
    */
   useEffect(() => {
     return () => {
-      if (conversationId && window.socketService) {
+      if (conversationId && (window as any).socketService) {
         console.log('👋 Leaving conversation room:', conversationId);
-        window.socketService.leaveConversation(conversationId);
+        (window as any).socketService.leaveConversation(conversationId);
       }
     };
   }, [conversationId]);
@@ -166,14 +165,14 @@ export const useChat = ({
       if (response.success) {
         // Messages come in reverse chronological order, reverse them for display
         const loadedMessages = response.data.messages.reverse();
-        
+
         // DEBUG: Check what fields messages have
         console.log('📜 Loaded historical messages:', loadedMessages);
         if (loadedMessages.length > 0) {
           console.log('Sample message fields:', Object.keys(loadedMessages[0]));
           console.log('Current userId:', userId);
         }
-        
+
         setMessages(loadedMessages);
         setHasLoadedInitialMessages(true);
       }
@@ -240,7 +239,7 @@ export const useChat = ({
             sendBotMessageViaSocket(content, conversationId || undefined, (response) => {
               clearTimeout(typingTimeout);
               setIsTyping(false); // Clear typing indicator immediately
-              
+
               if (response.success) {
                 // Update conversation ID if this is the first message
                 if (!conversationId && response.conversation_id) {
@@ -255,7 +254,7 @@ export const useChat = ({
                 });
               } else {
                 console.error('Failed to send message:', response.error);
-                
+
                 // Remove optimistic message on failure
                 setMessages((prev) => prev.filter((msg) => msg._id !== optimisticMessage._id));
               }
@@ -273,7 +272,7 @@ export const useChat = ({
               // Replace optimistic message and add bot response
               setMessages((prev) => {
                 const withoutOptimistic = prev.filter((msg) => msg._id !== optimisticMessage._id);
-                return [...withoutOptimistic, response.data.user_message, response.data.bot_message];
+                return [...withoutOptimistic, response.data.user_message as Message, response.data.bot_message as Message];
               });
             }
 
@@ -283,7 +282,7 @@ export const useChat = ({
           console.error('Error sending message:', error);
           clearTimeout(typingTimeout);
           setIsTyping(false);
-          
+
           // Remove optimistic message on error
           setMessages((prev) => prev.filter((msg) => msg._id !== optimisticMessage._id));
         }

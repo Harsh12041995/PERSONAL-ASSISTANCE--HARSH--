@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { User } from "../../types/user";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +52,7 @@ export default function UserDropdown() {
   // Format role for display
   const getFormattedRole = () => {
     if (!role) return "";
-    
+
     // Convert role to title case and replace underscores with spaces
     return role
       .split("_")
@@ -68,17 +67,16 @@ export default function UserDropdown() {
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
         <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img 
-            src={getUserProfileImage()} 
-            alt={getUserDisplayName()} 
+          <img
+            src={getUserProfileImage()}
+            alt={getUserDisplayName()}
             className="w-full h-full object-cover"
           />
         </span>
 
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
           width="18"
           height="20"
           viewBox="0 0 18 20"

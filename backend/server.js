@@ -9,23 +9,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// ── Middleware ─────────────────────────────────────────────────────────────────
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ── Database ───────────────────────────────────────────────────────────────────
+// MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/harsh_personal')
     .then(() => console.log('✅  MongoDB Connected — harsh_personal'))
     .catch(err => console.log('❌  MongoDB Error:', err));
 
-// ── Routes ─────────────────────────────────────────────────────────────────────
+// ── Public routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', require('./routes/auth'));
+
+// ── Protected personal module routes ─────────────────────────────────────────
 app.use('/api/v1/personal', protect, require('./routes/personal'));
 
-// ── Health check ───────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', server: 'Harsh Personal Backend v3' }));
-
-// ── 404 catch-all ─────────────────────────────────────────────────────────────
-app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not found' }));
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/health', (_req, res) => res.json({ status: 'ok', server: 'Harsh Personal Backend' }));
 
 app.listen(PORT, () => console.log(`🚀  Backend running on http://localhost:${PORT}`));

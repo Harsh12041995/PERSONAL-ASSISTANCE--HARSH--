@@ -48,7 +48,7 @@ export default function CareerPage() {
         setJobs(prev => prev.filter(j => j._id !== id));
     };
     const updateJobStatus = async (id: string, status: string) => {
-        const updated = await careerApi.updateJob(id, { status });
+        await careerApi.updateJob(id, { status });
         setJobs(prev => prev.map(j => j._id === id ? { ...j, status } : j));
     };
 

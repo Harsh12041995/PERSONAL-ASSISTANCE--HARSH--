@@ -1,37 +1,50 @@
 /**
  * seed-harsh.js
- * Run once to create Harsh's personal login on Atlas.
+ * Run once to create Harsh's personal login credential.
  * Usage: node seed-harsh.js
  */
 
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const User = require('./models/User');
+
 dotenv.config();
 
-const User = require('./models/User');
+mongoose.connect(process.env.MONGODB_URI);
 
 const seed = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log('✅  Connected to Atlas\n');
-
-        // Remove old account if exists (idempotent)
+        // Remove old Harsh account if exists (idempotent re-run)
         await User.deleteOne({ email: 'harsh@personal.app' });
 
         await User.create({
-            name: 'Harsh Sahu',
+            first_name: 'Harsh',
+            last_name: 'Sahu',
             email: 'harsh@personal.app',
-            password: 'Harsh@123',       // will be hashed by pre-save hook
-            role: 'owner',
+            password: 'Harsh@2024',
+            role: {
+                name: 'Owner',
+                permissions: ['all_access']
+            },
+            company: {
+                name: 'Personal Space',
+                code: 'HARSH'
+            },
+            groups: {
+                solar_groups: [],
+                solar_groups_ids: []
+            }
         });
 
-        console.log('✅  Harsh\'s account created on Atlas!');
+        console.log('');
+        console.log('✅  Harsh\'s account created!');
+        console.log('');
         console.log('   Email    : harsh@personal.app');
-        console.log('   Password : Harsh@123');
-        console.log('   DB       : harsh_personal\n');
+        console.log('   Password : Harsh@2024');
+        console.log('');
         process.exit(0);
     } catch (err) {
-        console.error('❌  Seed failed:', err.message);
+        console.error('❌  Failed to seed credential:', err.message);
         process.exit(1);
     }
 };
