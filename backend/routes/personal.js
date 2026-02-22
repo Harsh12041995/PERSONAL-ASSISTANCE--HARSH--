@@ -19,6 +19,11 @@ router.get('/finance', p.getTransactions);
 router.post('/finance', p.createTransaction);
 router.delete('/finance/:id', p.deleteTransaction);
 
+// ── Budgets ───────────────────────────────────────────────────────────────────
+router.get('/budgets', p.getBudgets);
+router.post('/budgets', p.upsertBudget);
+router.delete('/budgets/:id', p.deleteBudget);
+
 // ── Knowledge ─────────────────────────────────────────────────────────────────
 router.get('/knowledge', p.getNotes);
 router.post('/knowledge', p.createNote);
@@ -34,6 +39,49 @@ router.delete('/goals/:id', p.deleteGoal);
 // ── Health (one doc per day) ──────────────────────────────────────────────────
 router.get('/health/:date', p.getHealthDay);
 router.put('/health/:date', p.saveHealthDay);
+
+// ── Journal (one per day, long-form) ─────────────────────────────────────────
+router.get('/journal', p.getJournals);
+router.get('/journal/:date', p.getJournalDay);
+router.put('/journal/:date', p.saveJournalDay);
+
+// ── Career ────────────────────────────────────────────────────────────────────
+router.get('/career/profile', p.getCareerProfile);
+router.put('/career/profile', p.saveCareerProfile);
+
+router.get('/career/jobs', p.getJobs);
+router.post('/career/jobs', p.createJob);
+router.put('/career/jobs/:id', p.updateJob);
+router.delete('/career/jobs/:id', p.deleteJob);
+
+router.get('/career/certs', p.getCerts);
+router.post('/career/certs', p.createCert);
+router.put('/career/certs/:id', p.updateCert);
+router.delete('/career/certs/:id', p.deleteCert);
+
+router.get('/career/skills', p.getSkills);
+router.post('/career/skills', p.createSkill);
+router.put('/career/skills/:id', p.updateSkill);
+router.delete('/career/skills/:id', p.deleteSkill);
+
+// ── Social ────────────────────────────────────────────────────────────────────
+router.get('/social/contacts', p.getContacts);
+router.post('/social/contacts', p.createContact);
+router.put('/social/contacts/:id', p.updateContact);
+router.delete('/social/contacts/:id', p.deleteContact);
+
+router.get('/social/ideas', p.getContentIdeas);
+router.post('/social/ideas', p.createContentIdea);
+router.put('/social/ideas/:id', p.updateContentIdea);
+router.delete('/social/ideas/:id', p.deleteContentIdea);
+
+router.get('/social/platforms', p.getSocialPlatforms);
+router.post('/social/platforms', p.upsertSocialPlatform);
+router.delete('/social/platforms/:id', p.deleteSocialPlatform);
+
+// ── User Settings ─────────────────────────────────────────────────────────────
+router.get('/settings', p.getSettings);
+router.put('/settings', p.saveSettings);
 
 // ── Dashboard stats ───────────────────────────────────────────────────────────
 router.get('/stats', p.getDashboardStats);

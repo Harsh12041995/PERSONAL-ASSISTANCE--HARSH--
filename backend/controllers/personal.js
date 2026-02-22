@@ -7,6 +7,16 @@ const Finance = require('../models/Finance');
 const Knowledge = require('../models/Knowledge');
 const Goal = require('../models/Goal');
 const Health = require('../models/Health');
+const Budget = require('../models/Budget');
+const Journal = require('../models/Journal');
+const CareerProfile = require('../models/CareerProfile');
+const Job = require('../models/Job');
+const Certification = require('../models/Certification');
+const Skill = require('../models/Skill');
+const Contact = require('../models/Contact');
+const ContentIdea = require('../models/ContentIdea');
+const SocialPlatform = require('../models/SocialPlatform');
+const UserSettings = require('../models/UserSettings');
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
@@ -224,21 +234,160 @@ exports.getDashboardStats = async (req, res) => {
 exports.exportAllData = async (req, res) => {
     try {
         const uid = req.user._id;
-        const [captures, tasks, finance, knowledge, goals, health] = await Promise.all([
-            Capture.find({ userId: uid }),
-            Task.find({ userId: uid }),
-            Finance.find({ userId: uid }),
-            Knowledge.find({ userId: uid }),
-            Goal.find({ userId: uid }),
-            Health.find({ userId: uid }),
-        ]);
+        const [captures, tasks, finance, budgets, knowledge, goals, health, journals,
+            careerProfile, jobs, certs, skills, contacts, ideas, platforms, settings] = await Promise.all([
+                Capture.find({ userId: uid }),
+                Task.find({ userId: uid }),
+                Finance.find({ userId: uid }),
+                Budget.find({ userId: uid }),
+                Knowledge.find({ userId: uid }),
+                Goal.find({ userId: uid }),
+                Health.find({ userId: uid }),
+                Journal.find({ userId: uid }),
+                CareerProfile.findOne({ userId: uid }),
+                Job.find({ userId: uid }),
+                Certification.find({ userId: uid }),
+                Skill.find({ userId: uid }),
+                Contact.find({ userId: uid }),
+                ContentIdea.find({ userId: uid }),
+                SocialPlatform.find({ userId: uid }),
+                UserSettings.findOne({ userId: uid }),
+            ]);
         const exportData = {
             exportedAt: new Date().toISOString(),
             userId: uid,
-            captures, tasks, finance, knowledge, goals, health,
+            captures, tasks, finance, budgets, knowledge, goals, health, journals,
+            career: { profile: careerProfile, jobs, certs, skills },
+            social: { contacts, ideas, platforms },
+            settings,
         };
         res.setHeader('Content-Disposition', `attachment; filename="harsh-data-${new Date().toISOString().slice(0, 10)}.json"`);
         res.setHeader('Content-Type', 'application/json');
         res.send(JSON.stringify(exportData, null, 2));
+    } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BUDGETS
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getBudgets = async (req, res) => {
+    try { ok(res, await Budget.find({ userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.upsertBudget = async (req, res) => {
+    try {
+        const b = await Budget.findOneAndUpdate(
+            { userId: req.user._id, category: req.body.category },
+            { ...req.body, userId: req.user._id },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, b);
+    } catch (e) { fail(res, e); }
+};
+exports.deleteBudget = async (req, res) => {
+    try { await Budget.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  JOURNAL
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getJournals = async (req, res) => {
+    try { ok(res, await Journal.find({ userId: req.user._id }).sort({ date: -1 }).limit(30)); } catch (e) { fail(res, e); }
+};
+exports.getJournalDay = async (req, res) => {
+    try {
+        const j = await Journal.findOne({ userId: req.user._id, date: req.params.date });
+        ok(res, j || { date: req.params.date, content: '', mood: '🙂', tags: [] });
+    } catch (e) { fail(res, e); }
+};
+exports.saveJournalDay = async (req, res) => {
+    try {
+        const body = { ...req.body, userId: req.user._id, date: req.params.date };
+        if (body.content) body.wordCount = body.content.trim().split(/\s+/).length;
+        const j = await Journal.findOneAndUpdate(
+            { userId: req.user._id, date: req.params.date },
+            body, { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, j);
+    } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CAREER
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getCareerProfile = async (req, res) => {
+    try {
+        const p = await CareerProfile.findOne({ userId: req.user._id });
+        ok(res, p || {});
+    } catch (e) { fail(res, e); }
+};
+exports.saveCareerProfile = async (req, res) => {
+    try {
+        const p = await CareerProfile.findOneAndUpdate(
+            { userId: req.user._id },
+            { ...req.body, userId: req.user._id },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, p);
+    } catch (e) { fail(res, e); }
+};
+
+exports.getJobs = async (req, res) => { try { ok(res, await Job.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
+exports.createJob = async (req, res) => { try { ok(res, await Job.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
+exports.updateJob = async (req, res) => { try { ok(res, await Job.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.deleteJob = async (req, res) => { try { await Job.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+exports.getCerts = async (req, res) => { try { ok(res, await Certification.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
+exports.createCert = async (req, res) => { try { ok(res, await Certification.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
+exports.updateCert = async (req, res) => { try { ok(res, await Certification.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.deleteCert = async (req, res) => { try { await Certification.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+exports.getSkills = async (req, res) => { try { ok(res, await Skill.find({ userId: req.user._id }).sort({ level: -1 })); } catch (e) { fail(res, e); } };
+exports.createSkill = async (req, res) => { try { ok(res, await Skill.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
+exports.updateSkill = async (req, res) => { try { ok(res, await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.deleteSkill = async (req, res) => { try { await Skill.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SOCIAL
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getContacts = async (req, res) => { try { ok(res, await Contact.find({ userId: req.user._id }).sort({ lastTalked: 1 })); } catch (e) { fail(res, e); } };
+exports.createContact = async (req, res) => { try { ok(res, await Contact.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
+exports.updateContact = async (req, res) => { try { ok(res, await Contact.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.deleteContact = async (req, res) => { try { await Contact.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+exports.getContentIdeas = async (req, res) => { try { ok(res, await ContentIdea.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
+exports.createContentIdea = async (req, res) => { try { ok(res, await ContentIdea.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
+exports.updateContentIdea = async (req, res) => { try { ok(res, await ContentIdea.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.deleteContentIdea = async (req, res) => { try { await ContentIdea.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+exports.getSocialPlatforms = async (req, res) => { try { ok(res, await SocialPlatform.find({ userId: req.user._id })); } catch (e) { fail(res, e); } };
+exports.upsertSocialPlatform = async (req, res) => {
+    try {
+        const sp = await SocialPlatform.findOneAndUpdate(
+            { userId: req.user._id, platform: req.body.platform },
+            { ...req.body, userId: req.user._id },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, sp);
+    } catch (e) { fail(res, e); }
+};
+exports.deleteSocialPlatform = async (req, res) => { try { await SocialPlatform.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getSettings = async (req, res) => {
+    try {
+        const s = await UserSettings.findOne({ userId: req.user._id });
+        ok(res, s || {});
+    } catch (e) { fail(res, e); }
+};
+exports.saveSettings = async (req, res) => {
+    try {
+        const s = await UserSettings.findOneAndUpdate(
+            { userId: req.user._id },
+            { ...req.body, userId: req.user._id },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, s);
     } catch (e) { fail(res, e); }
 };
