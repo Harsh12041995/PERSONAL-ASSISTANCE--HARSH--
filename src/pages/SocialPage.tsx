@@ -1,254 +1,354 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { socialApi, IContact, IContentIdea, ISocialPlatform } from '../services/personalApi';
 
-type RelType = 'Friend' | 'Family' | 'Colleague' | 'Professional' | 'Mentor' | 'Other';
-
-interface Contact { id: string; name: string; rel: RelType; color: string; lastTalk: string; note: string; phone: string; }
-interface ContentIdea { id: string; idea: string; platform: string; emoji: string; }
-interface SocialStat { platform: string; followers: string; engagement: string; lastPost: string; emoji: string; gradient: string; }
-
-const lsGet = (key: string, def: unknown) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? def; } catch { return def; } };
-const lsSet = (key: string, val: unknown) => localStorage.setItem(key, JSON.stringify(val));
-const uid = () => Math.random().toString(36).slice(2);
-const today = () => new Date().toISOString().slice(0, 10);
-
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = ['bg-blue-500', 'bg-pink-500', 'bg-violet-500', 'bg-orange-500', 'bg-emerald-500', 'bg-red-500', 'bg-indigo-500', 'bg-teal-500'];
-const REL_TYPES: RelType[] = ['Friend', 'Family', 'Colleague', 'Professional', 'Mentor', 'Other'];
+const REL_TYPES = ['Friend', 'Family', 'Colleague', 'Professional', 'Mentor', 'Other'];
 const REL_BADGE: Record<string, string> = {
     Friend: 'bg-blue-100 text-blue-700', Family: 'bg-pink-100 text-pink-700',
     Colleague: 'bg-violet-100 text-violet-700', Professional: 'bg-orange-100 text-orange-700',
     Mentor: 'bg-indigo-100 text-indigo-700', Other: 'bg-gray-100 text-gray-600',
 };
-
+const STATUS_BADGE: Record<string, string> = {
+    Idea: 'bg-gray-100 text-gray-600', Draft: 'bg-amber-100 text-amber-700',
+    Scheduled: 'bg-blue-100 text-blue-700', Published: 'bg-emerald-100 text-emerald-700',
+};
+const PLATFORM_GRADIENT: Record<string, string> = {
+    Instagram: 'from-pink-500 to-purple-500', LinkedIn: 'from-blue-600 to-blue-700',
+    Twitter: 'from-sky-400 to-sky-500', YouTube: 'from-red-500 to-red-600', Other: 'from-gray-500 to-gray-600',
+};
 const daysSince = (d: string) => { if (!d) return 999; return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); };
-
-const DEF_CONTACTS: Contact[] = [
-    { id: '1', name: 'Rahul Sharma', rel: 'Friend', color: 'bg-blue-500', lastTalk: '2026-02-19', note: 'Discuss startup partnership idea', phone: '' },
-    { id: '2', name: 'Priya Mehta', rel: 'Family', color: 'bg-pink-500', lastTalk: '2026-02-22', note: 'Birthday next week, plan dinner', phone: '' },
-];
-const DEF_IDEAS: ContentIdea[] = [
-    { id: '1', idea: 'Building my personal assistant app — behind the scenes', platform: 'LinkedIn', emoji: '💻' },
-    { id: '2', idea: '5 habits that changed my morning routine', platform: 'Instagram', emoji: '☀️' },
-];
-const DEF_STATS: SocialStat[] = [
-    { platform: 'Instagram', followers: '', engagement: '', lastPost: '', emoji: '📸', gradient: 'from-pink-500 to-purple-500' },
-    { platform: 'LinkedIn', followers: '', engagement: '', lastPost: '', emoji: '💼', gradient: 'from-blue-600 to-blue-700' },
-];
+const today = () => new Date().toISOString().slice(0, 10);
 
 export default function SocialPage() {
-    const [contacts, setContacts] = useState(lsGet('social_contacts', DEF_CONTACTS) as Contact[]);
-    const [ideas, setIdeas] = useState(lsGet('social_ideas', DEF_IDEAS) as ContentIdea[]);
-    const [stats, setStats] = useState(lsGet('social_stats', DEF_STATS) as SocialStat[]);
+    const [contacts, setContacts] = useState<IContact[]>([]);
+    const [ideas, setIdeas] = useState<IContentIdea[]>([]);
+    const [platforms, setPlatforms] = useState<ISocialPlatform[]>([]);
     const [tab, setTab] = useState<'contacts' | 'ideas' | 'platforms'>('contacts');
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [filterDays, setDays] = useState<number | null>(null);
 
-    const saveContacts = (v: Contact[]) => { setContacts(v); lsSet('social_contacts', v); };
-    const saveIdeas = (v: ContentIdea[]) => { setIdeas(v); lsSet('social_ideas', v); };
-    const saveStats = (v: SocialStat[]) => { setStats(v); lsSet('social_stats', v); };
+    // ── Load on mount ─────────────────────────────────────────────────────────
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [c, i, p] = await Promise.all([
+                socialApi.getContacts(), socialApi.getIdeas(), socialApi.getPlatforms(),
+            ]);
+            setContacts(c || []); setIdeas(i || []); setPlatforms(p || []);
+        } catch (e) { console.error('Social load error', e); }
+        finally { setLoading(false); }
+    }, []);
 
-    // Contact form
-    const [cForm, setCForm] = useState({ name: '', rel: 'Friend' as RelType, lastTalk: today(), note: '', phone: '' });
+    useEffect(() => { load(); }, [load]);
+
+    // ── Contact handlers ──────────────────────────────────────────────────────
+    const [cForm, setCForm] = useState({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
     const [cNew, setCNew] = useState(false);
-    const addContact = () => {
+    const addContact = async () => {
         if (!cForm.name) return;
-        const color = AVATAR_COLORS[contacts.length % AVATAR_COLORS.length];
-        saveContacts([{ id: uid(), color, ...cForm }, ...contacts]);
-        setCForm({ name: '', rel: 'Friend', lastTalk: today(), note: '', phone: '' });
+        const created = await socialApi.createContact({ ...cForm, email: '', tags: [], socialLinks: { instagram: '', linkedin: '', twitter: '' } } as any);
+        setContacts(prev => [created, ...prev]);
+        setCForm({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
         setCNew(false);
     };
-
-    // Idea form
-    const [iForm, setIForm] = useState({ idea: '', platform: 'Instagram', emoji: '💡' });
-    const [iNew, setINew] = useState(false);
-    const addIdea = () => {
-        if (!iForm.idea) return;
-        saveIdeas([{ id: uid(), ...iForm }, ...ideas]);
-        setIForm({ idea: '', platform: 'Instagram', emoji: '💡' });
-        setINew(false);
+    const deleteContact = async (id: string) => {
+        await socialApi.deleteContact(id);
+        setContacts(prev => prev.filter(c => c._id !== id));
+    };
+    const touchContact = async (id: string) => {
+        const updated = await socialApi.updateContact(id, { lastTalked: today() });
+        setContacts(prev => prev.map(c => c._id === id ? { ...c, lastTalked: today() } : c));
     };
 
-    const touchContact = (id: string) => saveContacts(contacts.map(c => c.id === id ? { ...c, lastTalk: today() } : c));
+    // ── Content idea handlers ─────────────────────────────────────────────────
+    const [iForm, setIForm] = useState({ title: '', platform: 'Instagram', status: 'Idea', notes: '', dueDate: '' });
+    const [iNew, setINew] = useState(false);
+    const addIdea = async () => {
+        if (!iForm.title) return;
+        const created = await socialApi.createIdea({ ...iForm, tags: [] } as any);
+        setIdeas(prev => [created, ...prev]);
+        setIForm({ title: '', platform: 'Instagram', status: 'Idea', notes: '', dueDate: '' });
+        setINew(false);
+    };
+    const deleteIdea = async (id: string) => {
+        await socialApi.deleteIdea(id);
+        setIdeas(prev => prev.filter(i => i._id !== id));
+    };
+    const updateIdeaStatus = async (id: string, status: string) => {
+        await socialApi.updateIdea(id, { status });
+        setIdeas(prev => prev.map(i => i._id === id ? { ...i, status } : i));
+    };
 
-    const sorted = [...contacts]
-        .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) && (filterDays === null || daysSince(c.lastTalk) >= filterDays))
-        .sort((a, b) => daysSince(b.lastTalk) - daysSince(a.lastTalk));
+    // ── Platform handlers ─────────────────────────────────────────────────────
+    const [pForm, setPForm] = useState({ platform: 'Instagram', handle: '', followers: 0, engagement: '0%', emoji: '📸', profileUrl: '', lastPost: '' });
+    const [pNew, setPNew] = useState(false);
+    const upsertPlatform = async () => {
+        if (!pForm.platform) return;
+        const created = await socialApi.upsertPlatform({ ...pForm, following: 0 } as any);
+        setPlatforms(prev => {
+            const exists = prev.find(p => p.platform === created.platform);
+            return exists ? prev.map(p => p._id === created._id ? created : p) : [created, ...prev];
+        });
+        setPForm({ platform: 'Instagram', handle: '', followers: 0, engagement: '0%', emoji: '📸', profileUrl: '', lastPost: '' });
+        setPNew(false);
+    };
+    const deletePlatform = async (id: string) => {
+        await socialApi.deletePlatform(id);
+        setPlatforms(prev => prev.filter(p => p._id !== id));
+    };
+
+    // ── Filtered contacts ─────────────────────────────────────────────────────
+    const filtered = contacts.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+    const overdue = contacts.filter(c => daysSince(c.lastTalked) > (c.followUpDays || 14));
 
     const TABS = [
         { id: 'contacts' as const, label: '👥 Contacts', count: contacts.length },
         { id: 'ideas' as const, label: '💡 Content', count: ideas.length },
-        { id: 'platforms' as const, label: '📊 Platforms', count: null },
+        { id: 'platforms' as const, label: '📱 Platforms', count: platforms.length },
     ];
+
+    if (loading) return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading social data…</div>;
 
     return (
         <div className="space-y-6 pb-8 max-w-4xl">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">📱 Social Life Tracker</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Stay connected — relationships, content pipeline & social stats</p>
+                <h1 className="text-2xl font-bold text-gray-900">🌐 Social Hub</h1>
+                <p className="text-sm text-gray-500 mt-0.5">Relationships, content pipeline &amp; social stats · Synced to MongoDB</p>
             </div>
 
-            {/* Quick stats */}
-            <div className="grid grid-cols-3 gap-3">
-                {[
-                    { label: 'Contacts', value: contacts.length, emoji: '👥', bg: 'bg-blue-50 border-blue-100' },
-                    { label: 'Need catch-up', value: contacts.filter(c => daysSince(c.lastTalk) >= 14).length, emoji: '⚠️', bg: 'bg-amber-50 border-amber-100' },
-                    { label: 'Content ideas', value: ideas.length, emoji: '💡', bg: 'bg-violet-50 border-violet-100' },
-                ].map(s => (
-                    <div key={s.label} className={`rounded-2xl border p-4 ${s.bg}`}>
-                        <span className="text-2xl">{s.emoji}</span>
-                        <p className="text-xl font-bold text-gray-800 mt-1">{s.value}</p>
-                        <p className="text-xs text-gray-500">{s.label}</p>
+            {/* Stats bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-2xl border bg-blue-50 border-blue-100 p-4">
+                    <span className="text-2xl">👥</span>
+                    <p className="text-xl font-bold text-gray-800 mt-1">{contacts.length}</p>
+                    <p className="text-xs text-gray-500">Contacts</p>
+                </div>
+                <div className="rounded-2xl border bg-red-50 border-red-100 p-4">
+                    <span className="text-2xl">⏰</span>
+                    <p className="text-xl font-bold text-gray-800 mt-1">{overdue.length}</p>
+                    <p className="text-xs text-gray-500">Overdue Follow-ups</p>
+                </div>
+                <div className="rounded-2xl border bg-amber-50 border-amber-100 p-4">
+                    <span className="text-2xl">💡</span>
+                    <p className="text-xl font-bold text-gray-800 mt-1">{ideas.filter(i => i.status !== 'Published').length}</p>
+                    <p className="text-xs text-gray-500">Ideas in Pipeline</p>
+                </div>
+                <div className="rounded-2xl border bg-violet-50 border-violet-100 p-4">
+                    <span className="text-2xl">📱</span>
+                    <p className="text-xl font-bold text-gray-800 mt-1">{platforms.length}</p>
+                    <p className="text-xs text-gray-500">Platforms</p>
+                </div>
+            </div>
+
+            {/* Overdue alert */}
+            {overdue.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <p className="text-sm font-semibold text-red-700">⏰ {overdue.length} contact{overdue.length > 1 ? 's' : ''} need{overdue.length === 1 ? 's' : ''} a follow-up</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {overdue.map(c => (
+                            <button key={c._id} onClick={() => touchContact(c._id)}
+                                className="text-xs bg-white border border-red-200 rounded-lg px-3 py-1.5 text-red-700 hover:bg-red-100 transition-colors">
+                                ✓ {c.name} ({daysSince(c.lastTalked)}d ago)
+                            </button>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
 
-            {/* Tab bar */}
+            {/* Tabs */}
             <div className="flex gap-2">
                 {TABS.map(t => (
                     <button key={t.id} onClick={() => setTab(t.id)}
                         className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
                             ${tab === t.id ? 'bg-violet-600 text-white shadow-md shadow-violet-200' : 'bg-white text-gray-600 border border-gray-200 hover:border-violet-300'}`}>
                         {t.label}
-                        {t.count !== null && (
-                            <span className={`text-xs rounded-full px-1.5 py-0.5 ${tab === t.id ? 'bg-violet-500' : 'bg-gray-100 text-gray-500'}`}>{t.count}</span>
-                        )}
+                        <span className={`text-xs rounded-full px-1.5 py-0.5 ${tab === t.id ? 'bg-violet-500' : 'bg-gray-100 text-gray-500'}`}>{t.count}</span>
                     </button>
                 ))}
             </div>
 
             {/* ── CONTACTS ── */}
             {tab === 'contacts' && (
-                <>
-                    <div className="flex flex-wrap gap-2">
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-                            className="flex-1 min-w-[180px] bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
-                        <div className="flex gap-2">
-                            {([{ label: 'All', val: null }, { label: '7d+', val: 7 }, { label: '14d+', val: 14 }, { label: '30d+', val: 30 }] as { label: string; val: number | null }[]).map(f => (
-                                <button key={String(f.val)} onClick={() => setDays(f.val)}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all
-                                        ${filterDays === f.val ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200'}`}>
-                                    {f.label}
-                                </button>
-                            ))}
-                        </div>
-                        <button onClick={() => setCNew(p => !p)} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl">
-                            {cNew ? '✕' : '+ Add'}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50 flex gap-3 items-center">
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search contacts…"
+                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        <button onClick={() => setCNew(p => !p)} className="text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-2 rounded-xl whitespace-nowrap">
+                            {cNew ? '✕ Cancel' : '+ Add'}
                         </button>
                     </div>
-
                     {cNew && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                        <div className="p-5 border-b border-gray-50 bg-violet-50/30 space-y-2">
                             <div className="grid grid-cols-2 gap-2">
                                 <input value={cForm.name} onChange={e => setCForm(p => ({ ...p, name: e.target.value }))} placeholder="Name *"
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
-                                <input value={cForm.phone} onChange={e => setCForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone (optional)"
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                                <input value={cForm.phone} onChange={e => setCForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone"
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <select value={cForm.rel} onChange={e => setCForm(p => ({ ...p, rel: e.target.value as RelType }))}
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+                            <div className="grid grid-cols-3 gap-2">
+                                <select value={cForm.relationship} onChange={e => setCForm(p => ({ ...p, relationship: e.target.value }))}
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
                                     {REL_TYPES.map(r => <option key={r}>{r}</option>)}
                                 </select>
-                                <input type="date" value={cForm.lastTalk} onChange={e => setCForm(p => ({ ...p, lastTalk: e.target.value }))}
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <input type="date" value={cForm.lastTalked} onChange={e => setCForm(p => ({ ...p, lastTalked: e.target.value }))}
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-3 py-2">
+                                    <span className="text-xs text-gray-500">Follow-up:</span>
+                                    <input type="number" value={cForm.followUpDays} onChange={e => setCForm(p => ({ ...p, followUpDays: Number(e.target.value) }))}
+                                        className="w-10 text-sm focus:outline-none" />
+                                    <span className="text-xs text-gray-400">d</span>
+                                </div>
                             </div>
-                            <input value={cForm.note} onChange={e => setCForm(p => ({ ...p, note: e.target.value }))} placeholder="Follow-up note"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
-                            <button onClick={addContact} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold">Save Contact</button>
+                            <input value={cForm.notes} onChange={e => setCForm(p => ({ ...p, notes: e.target.value }))} placeholder="Note (optional)"
+                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                            <button onClick={addContact} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold">Save Contact</button>
                         </div>
                     )}
-
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="divide-y divide-gray-50">
-                            {sorted.length === 0 && <p className="text-center text-sm text-gray-400 py-10">No contacts found. Add one above!</p>}
-                            {sorted.map(c => {
-                                const days = daysSince(c.lastTalk);
-                                const overdue = days >= 14;
-                                return (
-                                    <div key={c.id} className="group flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
-                                        <div className={`w-10 h-10 rounded-full ${c.color} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
-                                            {c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <p className="text-sm font-semibold text-gray-800">{c.name}</p>
-                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${REL_BADGE[c.rel]}`}>{c.rel}</span>
-                                                {overdue && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⏰ Overdue</span>}
-                                            </div>
-                                            {c.note && <p className="text-xs text-gray-400 mt-0.5">📌 {c.note}</p>}
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                            <p className="text-[10px] text-gray-400">Last talked</p>
-                                            <p className={`text-xs font-medium ${overdue ? 'text-amber-600' : 'text-gray-600'}`}>
-                                                {days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                            <button onClick={() => touchContact(c.id)} title="Mark talked today" className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 text-xs font-bold">✓</button>
-                                            <button onClick={() => saveContacts(contacts.filter(x => x.id !== c.id))} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-xs">✕</button>
-                                        </div>
+                    <div className="divide-y divide-gray-50">
+                        {filtered.length === 0 && <p className="text-center text-sm text-gray-400 py-10">{search ? 'No contacts match your search.' : 'No contacts yet. Add one above!'}</p>}
+                        {filtered.map((c, i) => {
+                            const ds = daysSince(c.lastTalked);
+                            const isOverdue = ds > (c.followUpDays || 14);
+                            return (
+                                <div key={c._id} className="group flex items-center gap-3 px-5 py-4 hover:bg-gray-50">
+                                    <div className={`w-10 h-10 rounded-xl ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                                        {c.name.charAt(0).toUpperCase()}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-800">{c.name}</p>
+                                        <p className="text-xs text-gray-400">
+                                            {c.phone && `${c.phone} · `}
+                                            Last: {c.lastTalked ? `${ds}d ago` : 'never'}
+                                            {isOverdue && <span className="text-red-500 ml-1">· Follow up!</span>}
+                                        </p>
+                                        {c.notes && <p className="text-xs text-gray-500 truncate">💬 {c.notes}</p>}
+                                    </div>
+                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${REL_BADGE[c.relationship] || 'bg-gray-100 text-gray-600'}`}>{c.relationship}</span>
+                                    <button onClick={() => touchContact(c._id)} className="opacity-0 group-hover:opacity-100 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all">✓ Talked</button>
+                                    <button onClick={() => deleteContact(c._id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all text-xs px-1">✕</button>
+                                </div>
+                            );
+                        })}
                     </div>
-                </>
+                </div>
             )}
 
             {/* ── CONTENT IDEAS ── */}
             {tab === 'ideas' && (
-                <>
-                    <div className="flex justify-between items-center">
-                        <p className="text-sm text-gray-500">{ideas.length} ideas in your pipeline</p>
-                        <button onClick={() => setINew(p => !p)} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl">{iNew ? '✕ Cancel' : '+ Add Idea'}</button>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50 flex justify-between items-center">
+                        <h2 className="text-sm font-bold text-gray-800">Content Pipeline</h2>
+                        <button onClick={() => setINew(p => !p)} className="text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-xl">
+                            {iNew ? '✕ Cancel' : '+ Add Idea'}
+                        </button>
                     </div>
                     {iNew && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-                            <textarea value={iForm.idea} onChange={e => setIForm(p => ({ ...p, idea: e.target.value }))} placeholder="Your content idea…" rows={2}
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" />
-                            <div className="flex gap-2">
-                                <input value={iForm.emoji} onChange={e => setIForm(p => ({ ...p, emoji: e.target.value }))} placeholder="💡"
-                                    className="w-16 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                        <div className="p-5 border-b border-gray-50 bg-violet-50/30 space-y-2">
+                            <input value={iForm.title} onChange={e => setIForm(p => ({ ...p, title: e.target.value }))} placeholder="Content idea / title *"
+                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                            <div className="grid grid-cols-3 gap-2">
                                 <select value={iForm.platform} onChange={e => setIForm(p => ({ ...p, platform: e.target.value }))}
-                                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
-                                    {['Instagram', 'LinkedIn', 'Twitter', 'YouTube'].map(p => <option key={p}>{p}</option>)}
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+                                    {['Instagram', 'LinkedIn', 'Twitter', 'YouTube', 'Blog', 'Other'].map(pl => <option key={pl}>{pl}</option>)}
                                 </select>
-                                <button onClick={addIdea} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold">Add</button>
+                                <select value={iForm.status} onChange={e => setIForm(p => ({ ...p, status: e.target.value }))}
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+                                    {['Idea', 'Draft', 'Scheduled', 'Published'].map(s => <option key={s}>{s}</option>)}
+                                </select>
+                                <input type="date" value={iForm.dueDate} onChange={e => setIForm(p => ({ ...p, dueDate: e.target.value }))}
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
                             </div>
+                            <input value={iForm.notes} onChange={e => setIForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes"
+                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                            <button onClick={addIdea} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold">Save Idea</button>
                         </div>
                     )}
-                    <div className="space-y-2">
-                        {ideas.length === 0 && <div className="text-center py-10 text-gray-400"><p className="text-3xl mb-2">💡</p><p className="text-sm">No ideas yet. Add your first!</p></div>}
+                    <div className="divide-y divide-gray-50">
+                        {ideas.length === 0 && <p className="text-center text-sm text-gray-400 py-10">No content ideas yet.</p>}
                         {ideas.map(idea => (
-                            <div key={idea.id} className="group flex items-start gap-3 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-violet-200 transition-all">
-                                <span className="text-2xl flex-shrink-0">{idea.emoji}</span>
-                                <div className="flex-1"><p className="text-sm text-gray-800 font-medium">{idea.idea}</p><span className="text-[10px] text-violet-600 font-semibold">{idea.platform}</span></div>
-                                <button onClick={() => saveIdeas(ideas.filter(x => x.id !== idea.id))} className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-400 hover:text-red-500 transition-all text-xs">✕</button>
+                            <div key={idea._id} className="group flex items-center gap-3 px-5 py-4 hover:bg-gray-50">
+                                <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-lg flex-shrink-0">
+                                    {idea.platform === 'Instagram' ? '📸' : idea.platform === 'LinkedIn' ? '💼' : idea.platform === 'YouTube' ? '🎥' : '✍️'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-800 truncate">{idea.title}</p>
+                                    <p className="text-xs text-gray-400">{idea.platform}{idea.dueDate ? ` · Due ${idea.dueDate}` : ''}</p>
+                                    {idea.notes && <p className="text-xs text-gray-500">📝 {idea.notes}</p>}
+                                </div>
+                                <select value={idea.status} onChange={e => updateIdeaStatus(idea._id, e.target.value)}
+                                    className={`text-xs font-bold px-2 py-1 rounded-full border-0 cursor-pointer ${STATUS_BADGE[idea.status] || 'bg-gray-100 text-gray-600'}`}>
+                                    {['Idea', 'Draft', 'Scheduled', 'Published'].map(s => <option key={s}>{s}</option>)}
+                                </select>
+                                <button onClick={() => deleteIdea(idea._id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all text-xs px-1">✕</button>
                             </div>
                         ))}
                     </div>
-                </>
+                </div>
             )}
 
             {/* ── PLATFORMS ── */}
             {tab === 'platforms' && (
                 <div className="space-y-4">
-                    <p className="text-sm text-gray-500">Update your social stats manually. Full API integration (Instagram Graph, LinkedIn) coming in Phase 4.</p>
-                    {stats.map((s, i) => (
-                        <div key={s.platform} className={`bg-gradient-to-br ${s.gradient} rounded-2xl p-5 text-white`}>
-                            <div className="flex items-center gap-3 mb-4"><span className="text-3xl">{s.emoji}</span><span className="text-lg font-bold">{s.platform}</span></div>
-                            <div className="grid grid-cols-3 gap-3">
-                                {([{ label: 'Followers', key: 'followers', ph: '1.2K' }, { label: 'Engagement', key: 'engagement', ph: '4.2%' }, { label: 'Last Post', key: 'lastPost', ph: '3 days ago' }] as { label: string; key: keyof SocialStat; ph: string }[]).map(f => (
-                                    <div key={f.key}>
-                                        <p className="text-xs text-white/70 mb-1">{f.label}</p>
-                                        <input value={s[f.key] as string}
-                                            onChange={e => { const updated = stats.map((x, j) => j === i ? { ...x, [f.key]: e.target.value } : x); saveStats(updated); }}
-                                            placeholder={f.ph}
-                                            className="w-full bg-white/20 text-white placeholder-white/50 rounded-xl px-3 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/30" />
-                                    </div>
-                                ))}
+                    <div className="flex justify-end">
+                        <button onClick={() => setPNew(p => !p)} className="text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-xl">
+                            {pNew ? '✕ Cancel' : '+ Add Platform'}
+                        </button>
+                    </div>
+                    {pNew && (
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                                <select value={pForm.platform} onChange={e => setPForm(p => ({ ...p, platform: e.target.value }))}
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+                                    {['Instagram', 'LinkedIn', 'Twitter', 'YouTube', 'Other'].map(pl => <option key={pl}>{pl}</option>)}
+                                </select>
+                                <input value={pForm.handle} onChange={e => setPForm(p => ({ ...p, handle: e.target.value }))} placeholder="@handle"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <input type="number" value={pForm.followers} onChange={e => setPForm(p => ({ ...p, followers: Number(e.target.value) }))} placeholder="Followers"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
                             </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <input value={pForm.engagement} onChange={e => setPForm(p => ({ ...p, engagement: e.target.value }))} placeholder="Engagement % (e.g. 4.2%)"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <input value={pForm.profileUrl} onChange={e => setPForm(p => ({ ...p, profileUrl: e.target.value }))} placeholder="Profile URL"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                            </div>
+                            <button onClick={upsertPlatform} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold">Save Platform</button>
                         </div>
-                    ))}
+                    )}
+                    {platforms.length === 0 && <p className="text-center text-sm text-gray-400 py-10 bg-white rounded-2xl border border-gray-100">No platforms added yet.</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {platforms.map(pl => (
+                            <div key={pl._id} className={`group relative rounded-2xl bg-gradient-to-br ${PLATFORM_GRADIENT[pl.platform] || 'from-gray-500 to-gray-600'} p-5 text-white shadow-lg`}>
+                                <button onClick={() => deletePlatform(pl._id)}
+                                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-white/60 hover:text-white transition-all text-xs">✕</button>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <span className="text-3xl">{pl.emoji}</span>
+                                    <div>
+                                        <p className="font-bold">{pl.platform}</p>
+                                        {pl.handle && <p className="text-sm opacity-75">{pl.handle}</p>}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white/20 rounded-xl p-3 text-center">
+                                        <p className="text-xl font-bold">{pl.followers.toLocaleString()}</p>
+                                        <p className="text-xs opacity-75">Followers</p>
+                                    </div>
+                                    <div className="bg-white/20 rounded-xl p-3 text-center">
+                                        <p className="text-xl font-bold">{pl.engagement || '—'}</p>
+                                        <p className="text-xs opacity-75">Engagement</p>
+                                    </div>
+                                </div>
+                                {pl.lastPost && <p className="text-xs opacity-60 mt-3">Last post: {pl.lastPost}</p>}
+                                {pl.profileUrl && (
+                                    <a href={pl.profileUrl} target="_blank" rel="noreferrer"
+                                        className="mt-3 block text-center text-xs bg-white/20 hover:bg-white/30 rounded-xl py-2 transition-colors">
+                                        Open Profile →
+                                    </a>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
