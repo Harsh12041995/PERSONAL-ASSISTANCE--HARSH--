@@ -14,6 +14,8 @@ import AppLayout from "./layout/AppLayout";
 // ── Auth pages ───────────────────────────────────────────────────────────────
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
+import AdminSignIn from "./pages/AuthPages/AdminSignIn";
+import PortalSignUp from "./pages/AuthPages/PortalSignUp";
 import AuthRedirect from "./components/AuthRedirect";
 import ResetPasswordPage from "./components/auth/ResetPasswordPage";
 import SetPasswordPage from "./components/auth/SetPasswordPage";
@@ -32,6 +34,7 @@ import SocialPage from "./pages/SocialPage";
 import AiChatPage from "./pages/AiChatPage";
 import Calendar from "./pages/Calendar";
 import SettingsPage from "./pages/SettingsPage";
+import UserManagement from "./pages/Admin/UserManagement";
 import NotFound from "./pages/OtherPage/NotFound";
 
 // ── Scroll to top on route change ────────────────────────────────────────────
@@ -54,6 +57,8 @@ export default function App() {
         {/* ── Public auth routes ─────────────────────────────────────── */}
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/admin/login" element={<AdminSignIn />} />
+        <Route path="/portal/signup" element={<PortalSignUp />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
         <Route path="/auth-redirect" element={<AuthRedirect />} />
@@ -72,6 +77,7 @@ export default function App() {
           <Route path="/career" element={<ProtectedRoute><CareerPage /></ProtectedRoute>} />
           <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
           <Route path="/ai-chat" element={<ProtectedRoute><AiChatPage /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         </Route>
 

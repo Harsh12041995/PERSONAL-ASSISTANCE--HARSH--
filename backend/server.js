@@ -24,6 +24,9 @@ app.use('/api/v1/auth', require('./routes/auth'));
 // ── Protected personal module routes ─────────────────────────────────────────
 app.use('/api/v1/personal', protect, require('./routes/personal'));
 
+// ── Admin routes ─────────────────────────────────────────────────────────────
+app.use('/api/v1/admin', require('./routes/admin'));
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
     const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';

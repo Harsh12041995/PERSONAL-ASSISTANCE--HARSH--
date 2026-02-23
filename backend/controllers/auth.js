@@ -61,6 +61,16 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
+        // Check if user is approved
+        if (user.status !== 'approved') {
+            return res.status(403).json({
+                success: false,
+                message: user.status === 'pending'
+                    ? 'Your account is pending approval by an admin.'
+                    : 'Your account has been blocked. Please contact support.'
+            });
+        }
+
         res.json({
             success: true,
             data: {

@@ -16,6 +16,15 @@ const UserSchema = new mongoose.Schema({
     groups: {
         solar_groups: [{ type: String }],
         solar_groups_ids: [{ type: String }]
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'blocked'],
+        default: 'pending'
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
     }
 });
 
