@@ -63,6 +63,9 @@ const MODULE_SHORTCUTS = [
   { name: 'Knowledge', emoji: '🧠', path: '/knowledge', desc: 'Save a note', color: 'from-indigo-400 to-purple-400' },
   { name: 'Health', emoji: '💪', path: '/health', desc: 'Log today\'s habits', color: 'from-rose-400 to-pink-400' },
   { name: 'Career', emoji: '💼', path: '/career', desc: 'Career updates', color: 'from-orange-400 to-amber-400' },
+  { name: 'Blogs', emoji: '🌍', path: '/blogs', desc: 'Stay aware globally', color: 'from-cyan-500 to-blue-500' },
+  { name: 'Workflow', emoji: '⚙️', path: '/workflow-manager', desc: 'Run social workflow', color: 'from-emerald-500 to-teal-500' },
+  { name: 'AI Tools', emoji: '🧰', path: '/ai-tools', desc: 'Open AI tool hub', color: 'from-sky-500 to-indigo-500' },
   { name: 'AI Chat', emoji: '🤖', path: '/ai-chat', desc: 'Ask your assistant', color: 'from-cyan-400 to-sky-400' },
 ];
 
@@ -77,7 +80,7 @@ const UPCOMING_EVENTS = [
 
 export default function Home() {
   const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0] || 'Harsh';
+  const firstName = user?.first_name || user?.name?.split(' ')[0] || 'User';
   const [time, setTime] = useState(formatTime());
   const [stats, setStats] = useState<IDashboardStats | null>(null);
   const [recentCaptures, setRecentCaptures] = useState<ICapture[]>([]);
@@ -218,7 +221,7 @@ export default function Home() {
               <span className="text-lg">📅</span>
               <h2 className="text-sm font-bold text-gray-800">Today's Schedule</h2>
             </div>
-            <Link to="/my-calendar" className="text-xs text-violet-600 hover:text-violet-700 font-medium">View all →</Link>
+            <Link to="/calendar" className="text-xs text-violet-600 hover:text-violet-700 font-medium">View all →</Link>
           </div>
           <div className="p-4 space-y-3">
             {UPCOMING_EVENTS.map((evt, i) => (

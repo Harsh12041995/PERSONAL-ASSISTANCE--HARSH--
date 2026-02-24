@@ -34,7 +34,12 @@ import SocialPage from "./pages/SocialPage";
 import AiChatPage from "./pages/AiChatPage";
 import Calendar from "./pages/Calendar";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
+import BlogsPage from "./pages/BlogsPage";
+import WorkflowManagerPage from "./pages/WorkflowManagerPage";
+import AIToolsHubPage from "./pages/AIToolsHubPage";
 import UserManagement from "./pages/Admin/UserManagement";
+import PermissionMatrix from "./pages/Admin/PermissionMatrix";
 import NotFound from "./pages/OtherPage/NotFound";
 
 // ── Scroll to top on route change ────────────────────────────────────────────
@@ -76,9 +81,14 @@ export default function App() {
           <Route path="/health" element={<ProtectedRoute><HealthPage /></ProtectedRoute>} />
           <Route path="/career" element={<ProtectedRoute><CareerPage /></ProtectedRoute>} />
           <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
+          <Route path="/blogs" element={<ProtectedRoute><BlogsPage /></ProtectedRoute>} />
+          <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManagerPage /></ProtectedRoute>} />
+          <Route path="/ai-tools" element={<ProtectedRoute><AIToolsHubPage /></ProtectedRoute>} />
           <Route path="/ai-chat" element={<ProtectedRoute><AiChatPage /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']}><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']}><PermissionMatrix /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         </Route>
 
         {/* 404 */}

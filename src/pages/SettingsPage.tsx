@@ -3,10 +3,33 @@ import { useAuth } from '../context/AuthContext';
 import { settingsApi, IUserSettings } from '../services/personalApi';
 
 const DEFAULTS: IUserSettings = {
-    displayName: 'Harsh', bio: 'Building my personal command center 🚀',
+    displayName: 'User', bio: 'Building my personal command center 🚀',
+    profileImage: '',
     timezone: 'Asia/Kolkata', theme: 'light', geminiApiKey: '',
     currency: 'INR', dateFormat: 'DD/MM/YYYY',
     notifications: { dailyDigest: true, habitReminders: true, goalDeadlines: true, contactFollowUp: true },
+    integrations: {
+        whatsappEnabled: false,
+        whatsappNumber: '',
+        telegramEnabled: false,
+        telegramUsername: '',
+    },
+    workflowManager: {
+        connections: { instagram: false, googleDrive: false, captionEngine: false },
+        ioPoints: {
+            driveInputFolderId: '',
+            dmInputMode: 'webhook',
+            instagramOutputAccountId: '',
+            archiveOutputFolderId: '',
+            alertOutputChannel: 'in-app',
+        },
+        dmRules: {
+            leadKeywords: 'collab, partnership, pricing, sponsor',
+            urgentKeywords: 'refund, issue, problem, urgent',
+            autoAcknowledge: true,
+            slaMinutes: 30,
+        },
+    },
 };
 
 const TIMEZONES = ['Asia/Kolkata', 'UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Singapore', 'Asia/Dubai'];
@@ -43,7 +66,32 @@ export default function SettingsPage() {
     // ── Load from MongoDB on mount ──────────────────────────────────────────
     useEffect(() => {
         settingsApi.get()
-            .then(data => { if (data && Object.keys(data).length) setS({ ...DEFAULTS, ...data }); })
+            .then(data => {
+                if (data && Object.keys(data).length) {
+                    setS({
+                        ...DEFAULTS,
+                        ...data,
+                        integrations: { ...DEFAULTS.integrations, ...(data.integrations || {}) },
+                        notifications: { ...DEFAULTS.notifications, ...(data.notifications || {}) },
+                        workflowManager: {
+                            ...DEFAULTS.workflowManager!,
+                            ...(data.workflowManager || {}),
+                            connections: {
+                                ...DEFAULTS.workflowManager!.connections,
+                                ...(data.workflowManager?.connections || {}),
+                            },
+                            ioPoints: {
+                                ...DEFAULTS.workflowManager!.ioPoints,
+                                ...(data.workflowManager?.ioPoints || {}),
+                            },
+                            dmRules: {
+                                ...DEFAULTS.workflowManager!.dmRules,
+                                ...(data.workflowManager?.dmRules || {}),
+                            },
+                        },
+                    });
+                }
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
@@ -187,6 +235,130 @@ export default function SettingsPage() {
                 )}
             </div>
 
+            {/* ── Messaging Integrations ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <SectionHead emoji="💬" title="Messaging Integrations" sub="WhatsApp and Telegram quick actions" />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">WhatsApp Number</label>
+                            <input
+                                value={s.integrations.whatsappNumber}
+                                onChange={e => update({ integrations: { ...s.integrations, whatsappNumber: e.target.value } })}
+                                placeholder="e.g. 919999999999"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">Telegram Username</label>
+                            <input
+                                value={s.integrations.telegramUsername}
+                                onChange={e => update({ integrations: { ...s.integrations, telegramUsername: e.target.value.replace('@', '') } })}
+                                placeholder="e.g. harshsahu"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                            />
+                        </div>
+                    </div>
+
+                    <ToggleRow
+                        label="Enable WhatsApp shortcuts"
+                        sub="Show one-click WhatsApp buttons for contacts"
+                        checked={s.integrations.whatsappEnabled}
+                        onChange={() => update({ integrations: { ...s.integrations, whatsappEnabled: !s.integrations.whatsappEnabled } })}
+                    />
+                    <ToggleRow
+                        label="Enable Telegram shortcuts"
+                        sub="Show one-click Telegram buttons for contacts"
+                        checked={s.integrations.telegramEnabled}
+                        onChange={() => update({ integrations: { ...s.integrations, telegramEnabled: !s.integrations.telegramEnabled } })}
+                    />
+                </div>
+            </div>
+
+            {/* ── Workflow I/O Settings ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <SectionHead emoji="🔄" title="Workflow I/O" sub="Configure input and output connection points" />
+                <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">Drive Input Folder ID</label>
+                            <input
+                                value={s.workflowManager?.ioPoints?.driveInputFolderId || ''}
+                                onChange={e => update({
+                                    workflowManager: {
+                                        ...s.workflowManager!,
+                                        ioPoints: { ...s.workflowManager!.ioPoints, driveInputFolderId: e.target.value }
+                                    }
+                                })}
+                                placeholder="Google Drive folder id"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">DM Input Mode</label>
+                            <select
+                                value={s.workflowManager?.ioPoints?.dmInputMode || 'webhook'}
+                                onChange={e => update({
+                                    workflowManager: {
+                                        ...s.workflowManager!,
+                                        ioPoints: { ...s.workflowManager!.ioPoints, dmInputMode: e.target.value as 'webhook' | 'manual' | 'hybrid' }
+                                    }
+                                })}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+                            >
+                                <option value="webhook">webhook</option>
+                                <option value="manual">manual</option>
+                                <option value="hybrid">hybrid</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">Instagram Output Account ID</label>
+                            <input
+                                value={s.workflowManager?.ioPoints?.instagramOutputAccountId || ''}
+                                onChange={e => update({
+                                    workflowManager: {
+                                        ...s.workflowManager!,
+                                        ioPoints: { ...s.workflowManager!.ioPoints, instagramOutputAccountId: e.target.value }
+                                    }
+                                })}
+                                placeholder="Instagram business account id"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">Archive Output Folder ID</label>
+                            <input
+                                value={s.workflowManager?.ioPoints?.archiveOutputFolderId || ''}
+                                onChange={e => update({
+                                    workflowManager: {
+                                        ...s.workflowManager!,
+                                        ioPoints: { ...s.workflowManager!.ioPoints, archiveOutputFolderId: e.target.value }
+                                    }
+                                })}
+                                placeholder="Archive folder id"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 block mb-1">Alert Output Channel</label>
+                        <input
+                            value={s.workflowManager?.ioPoints?.alertOutputChannel || ''}
+                            onChange={e => update({
+                                workflowManager: {
+                                    ...s.workflowManager!,
+                                    ioPoints: { ...s.workflowManager!.ioPoints, alertOutputChannel: e.target.value }
+                                }
+                            })}
+                            placeholder="in-app / email / telegram / slack"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                        />
+                    </div>
+                </div>
+            </div>
+
             {/* ── Data & Export ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <SectionHead emoji="💾" title="Data & Export" sub="Your data, your control" />
@@ -226,7 +398,7 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            <p className="text-center text-xs text-gray-300 pb-4">Harsh's Space v3.0 — Phase 3 ✅ · Atlas Connected 🍃</p>
+            <p className="text-center text-xs text-gray-300 pb-4">Personal Space v3.0 — Phase 3 ✅ · Atlas Connected 🍃</p>
         </div>
     );
 }

@@ -4,10 +4,11 @@ import { useAuth } from "../context/AuthContext";
 
 interface ProtectedRouteProps {
     children: JSX.Element;
+    allowedRoles?: string[];
 }
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element => {
-    const { token, isLoading, isInitialized } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps): JSX.Element => {
+    const { token, role, isLoading, isInitialized } = useAuth();
 
     if (isLoading || !isInitialized) {
         return (
@@ -22,7 +23,15 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element => {
         );
     }
 
-    return token ? children : <Navigate to="/signin" replace />;
+    if (!token) {
+        return <Navigate to="/signin" replace />;
+    }
+
+    if (allowedRoles && role && !allowedRoles.includes(role.toLowerCase())) {
+        return <Navigate to="/" replace />;
+    }
+
+    return children;
 };
 
 export default ProtectedRoute;

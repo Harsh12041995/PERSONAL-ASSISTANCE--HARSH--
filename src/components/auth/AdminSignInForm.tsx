@@ -15,7 +15,8 @@ export default function AdminSignInForm() {
 
     useEffect(() => {
         if (token && authUser && isInitialized) {
-            if (authUser.role?.name === 'owner') {
+            const r = (typeof authUser.role === 'string' ? authUser.role : authUser.role?.name)?.toLowerCase();
+            if (r === 'owner') {
                 navigate("/admin/users");
             } else {
                 navigate("/");

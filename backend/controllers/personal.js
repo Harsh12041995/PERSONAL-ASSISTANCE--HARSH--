@@ -17,6 +17,9 @@ const Contact = require('../models/Contact');
 const ContentIdea = require('../models/ContentIdea');
 const SocialPlatform = require('../models/SocialPlatform');
 const UserSettings = require('../models/UserSettings');
+const CalendarEvent = require('../models/CalendarEvent');
+const WorkflowQueueItem = require('../models/WorkflowQueueItem');
+const WorkflowDMActivity = require('../models/WorkflowDMActivity');
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
@@ -371,6 +374,91 @@ exports.upsertSocialPlatform = async (req, res) => {
     } catch (e) { fail(res, e); }
 };
 exports.deleteSocialPlatform = async (req, res) => { try { await SocialPlatform.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CALENDAR
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getCalendarEvents = async (req, res) => {
+    try { ok(res, await CalendarEvent.find({ userId: req.user._id }).sort({ start: 1, createdAt: -1 })); } catch (e) { fail(res, e); }
+};
+exports.createCalendarEvent = async (req, res) => {
+    try { ok(res, await CalendarEvent.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.updateCalendarEvent = async (req, res) => {
+    try { ok(res, await CalendarEvent.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+};
+exports.deleteCalendarEvent = async (req, res) => {
+    try { await CalendarEvent.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  WORKFLOW MANAGER
+// ═══════════════════════════════════════════════════════════════════════════════
+const workflowDefaultConfig = {
+    connections: { instagram: false, googleDrive: false, captionEngine: false },
+    ioPoints: {
+        driveInputFolderId: '',
+        dmInputMode: 'webhook',
+        instagramOutputAccountId: '',
+        archiveOutputFolderId: '',
+        alertOutputChannel: 'in-app',
+    },
+    dmRules: {
+        leadKeywords: 'collab, partnership, pricing, sponsor',
+        urgentKeywords: 'refund, issue, problem, urgent',
+        autoAcknowledge: true,
+        slaMinutes: 30,
+    },
+};
+
+exports.getWorkflowConfig = async (req, res) => {
+    try {
+        const s = await UserSettings.findOne({ userId: req.user._id });
+        ok(res, s?.workflowManager || workflowDefaultConfig);
+    } catch (e) { fail(res, e); }
+};
+
+exports.saveWorkflowConfig = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        const settings = await UserSettings.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+                userId: req.user._id,
+                workflowManager: {
+                    connections: { ...workflowDefaultConfig.connections, ...(payload.connections || {}) },
+                    ioPoints: { ...workflowDefaultConfig.ioPoints, ...(payload.ioPoints || {}) },
+                    dmRules: { ...workflowDefaultConfig.dmRules, ...(payload.dmRules || {}) },
+                },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, settings.workflowManager);
+    } catch (e) { fail(res, e); }
+};
+
+exports.getWorkflowQueue = async (req, res) => {
+    try { ok(res, await WorkflowQueueItem.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); }
+};
+exports.createWorkflowQueueItem = async (req, res) => {
+    try { ok(res, await WorkflowQueueItem.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.updateWorkflowQueueItem = async (req, res) => {
+    try { ok(res, await WorkflowQueueItem.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+};
+exports.deleteWorkflowQueueItem = async (req, res) => {
+    try { await WorkflowQueueItem.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
+};
+
+exports.getWorkflowDMActivity = async (req, res) => {
+    try { ok(res, await WorkflowDMActivity.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); }
+};
+exports.createWorkflowDMActivity = async (req, res) => {
+    try { ok(res, await WorkflowDMActivity.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.updateWorkflowDMActivity = async (req, res) => {
+    try { ok(res, await WorkflowDMActivity.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SETTINGS

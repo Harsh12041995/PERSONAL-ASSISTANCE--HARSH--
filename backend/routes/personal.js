@@ -79,6 +79,23 @@ router.get('/social/platforms', p.getSocialPlatforms);
 router.post('/social/platforms', p.upsertSocialPlatform);
 router.delete('/social/platforms/:id', p.deleteSocialPlatform);
 
+// ── Calendar ──────────────────────────────────────────────────────────────────
+router.get('/calendar/events', p.getCalendarEvents);
+router.post('/calendar/events', p.createCalendarEvent);
+router.put('/calendar/events/:id', p.updateCalendarEvent);
+router.delete('/calendar/events/:id', p.deleteCalendarEvent);
+
+// ── Workflow Manager ──────────────────────────────────────────────────────────
+router.get('/workflow/config', p.getWorkflowConfig);
+router.put('/workflow/config', p.saveWorkflowConfig);
+router.get('/workflow/queue', p.getWorkflowQueue);
+router.post('/workflow/queue', p.createWorkflowQueueItem);
+router.put('/workflow/queue/:id', p.updateWorkflowQueueItem);
+router.delete('/workflow/queue/:id', p.deleteWorkflowQueueItem);
+router.get('/workflow/dm', p.getWorkflowDMActivity);
+router.post('/workflow/dm', p.createWorkflowDMActivity);
+router.put('/workflow/dm/:id', p.updateWorkflowDMActivity);
+
 // ── User Settings ─────────────────────────────────────────────────────────────
 router.get('/settings', p.getSettings);
 router.put('/settings', p.saveSettings);

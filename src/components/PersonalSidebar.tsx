@@ -72,6 +72,24 @@ const SocialIcon = () => (
   </svg>
 );
 
+const BlogsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path d="M4.5 3.75A2.25 2.25 0 002.25 6v12A2.25 2.25 0 004.5 20.25h15A2.25 2.25 0 0021.75 18V6a2.25 2.25 0 00-2.25-2.25h-15zm.75 4.5a.75.75 0 01.75-.75h5.25a.75.75 0 010 1.5H6a.75.75 0 01-.75-.75zm0 3.75a.75.75 0 01.75-.75h12a.75.75 0 010 1.5H6a.75.75 0 01-.75-.75zm0 3.75a.75.75 0 01.75-.75h8.25a.75.75 0 010 1.5H6a.75.75 0 01-.75-.75zm11.25-7.5a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75z" />
+  </svg>
+);
+
+const WorkflowIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M5.25 3.75A2.25 2.25 0 003 6v2.25A2.25 2.25 0 005.25 10.5h2.25A2.25 2.25 0 009.75 8.25V6A2.25 2.25 0 007.5 3.75H5.25zM5.25 13.5A2.25 2.25 0 003 15.75V18a2.25 2.25 0 002.25 2.25h2.25A2.25 2.25 0 009.75 18v-2.25A2.25 2.25 0 007.5 13.5H5.25zM14.25 6A2.25 2.25 0 0116.5 3.75h2.25A2.25 2.25 0 0121 6v2.25a2.25 2.25 0 01-2.25 2.25H16.5a2.25 2.25 0 01-2.25-2.25V6zm2.25 7.5a2.25 2.25 0 00-2.25 2.25V18a2.25 2.25 0 002.25 2.25h2.25A2.25 2.25 0 0021 18v-2.25a2.25 2.25 0 00-2.25-2.25H16.5z" clipRule="evenodd" />
+  </svg>
+);
+
+const AIToolsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v1.152a8.252 8.252 0 016.097 6.096H20a.75.75 0 010 1.5h-1.056a8.254 8.254 0 01-6.194 6.194V19.5a.75.75 0 01-1.5 0v-1.558a8.254 8.254 0 01-6.194-6.194H4a.75.75 0 010-1.5h1.152a8.252 8.252 0 016.096-6.097V3a.75.75 0 01.75-.75zM6.75 11.25a5.25 5.25 0 1010.5 0 5.25 5.25 0 00-10.5 0z" clipRule="evenodd" />
+  </svg>
+);
+
 const AiIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
     <path d="M16.5 7.5h-9v9h9v-9z" />
@@ -112,13 +130,16 @@ const NAV_ITEMS: NavItem[] = [
   { id: "home", icon: <HomeIcon />, name: "Home", path: "/", accent: "bg-violet-500", emoji: "🏠" },
   { id: "capture", icon: <CaptureIcon />, name: "Quick Capture", path: "/capture", accent: "bg-amber-500", emoji: "📝" },
   { id: "tasks", icon: <TaskIcon />, name: "Tasks & Habits", path: "/personal-tasks", accent: "bg-emerald-500", emoji: "✅" },
-  { id: "calendar", icon: <CalendarIcon />, name: "Calendar", path: "/my-calendar", accent: "bg-sky-500", emoji: "📅" },
+  { id: "calendar", icon: <CalendarIcon />, name: "Calendar", path: "/calendar", accent: "bg-sky-500", emoji: "📅" },
   { id: "finance", icon: <FinanceIcon />, name: "Finance", path: "/finance", accent: "bg-green-500", emoji: "💰" },
   { id: "knowledge", icon: <KnowledgeIcon />, name: "Knowledge", path: "/knowledge", accent: "bg-indigo-500", emoji: "🧠" },
   { id: "goals", icon: <GoalsIcon />, name: "Goals", path: "/goals", accent: "bg-pink-500", emoji: "🎯" },
   { id: "health", icon: <HealthIcon />, name: "Health", path: "/health", accent: "bg-rose-500", emoji: "💪" },
   { id: "career", icon: <CareerIcon />, name: "Career", path: "/career", accent: "bg-orange-500", emoji: "💼" },
   { id: "social", icon: <SocialIcon />, name: "Social Life", path: "/social", accent: "bg-fuchsia-500", emoji: "📱" },
+  { id: "blogs", icon: <BlogsIcon />, name: "Blogs", path: "/blogs", accent: "bg-cyan-500", emoji: "🌍" },
+  { id: "workflow", icon: <WorkflowIcon />, name: "Workflow Manager", path: "/workflow-manager", accent: "bg-emerald-500", emoji: "⚙️" },
+  { id: "ai-tools", icon: <AIToolsIcon />, name: "AI Tools Hub", path: "/ai-tools", accent: "bg-sky-500", emoji: "🧰" },
   { id: "ai", icon: <AiIcon />, name: "AI Assistant", path: "/ai-chat", accent: "bg-cyan-500", emoji: "🤖" },
 ];
 
@@ -129,11 +150,12 @@ const BOTTOM_ITEMS: NavItem[] = [
 // ─── Main Sidebar Component ───────────────────────────────────────────────────
 
 const PersonalSidebar: React.FC = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [profileImage, setProfileImage] = useState<string>(() => localStorage.getItem("profileImage") || "");
 
   const isOpen = isExpanded || isMobileOpen || isHovered;
 
@@ -141,6 +163,16 @@ const PersonalSidebar: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const syncImage = () => setProfileImage(localStorage.getItem("profileImage") || "");
+    window.addEventListener("profile-image-updated", syncImage);
+    window.addEventListener("storage", syncImage);
+    return () => {
+      window.removeEventListener("profile-image-updated", syncImage);
+      window.removeEventListener("storage", syncImage);
+    };
   }, []);
 
   const isActive = useCallback(
@@ -163,7 +195,7 @@ const PersonalSidebar: React.FC = () => {
     return "Good evening";
   };
 
-  const firstName = user?.name?.split(" ")[0] || "Harsh";
+  const firstName = user?.first_name || user?.name?.split(" ")[0] || "User";
 
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.path);
@@ -235,7 +267,7 @@ const PersonalSidebar: React.FC = () => {
               <span className="text-white text-base font-bold">H</span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-900 leading-tight">Harsh's Space</p>
+              <p className="text-sm font-bold text-gray-900 leading-tight">{firstName}'s Space</p>
               <p className="text-[11px] text-gray-400 truncate">Personal Command Center</p>
             </div>
           </>
@@ -278,14 +310,26 @@ const PersonalSidebar: React.FC = () => {
         )}
         <ul className="space-y-0.5">
           {BOTTOM_ITEMS.map(renderNavItem)}
-          {user.role?.name === 'owner' && renderNavItem({
-            id: "admin-users",
-            icon: <AdminIcon />,
-            name: "User Management",
-            path: "/admin/users",
-            accent: "bg-violet-600",
-            emoji: "👥"
-          })}
+          {(role === 'owner' || role === 'admin') && (
+            <>
+              {renderNavItem({
+                id: "admin-users",
+                icon: <AdminIcon />,
+                name: "User Management",
+                path: "/admin/users",
+                accent: "bg-violet-600",
+                emoji: "👥"
+              })}
+              {renderNavItem({
+                id: "admin-permissions",
+                icon: <AdminIcon />,
+                name: "Permission Matrix",
+                path: "/admin/permission-matrix",
+                accent: "bg-indigo-600",
+                emoji: "🔐"
+              })}
+            </>
+          )}
         </ul>
       </nav>
 
@@ -293,13 +337,17 @@ const PersonalSidebar: React.FC = () => {
       <div className={`border-t border-gray-200/70 bg-white ${isOpen ? "p-3" : "p-2"}`}>
         {isOpen ? (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
-              <span className="text-white text-xs font-bold">
-                {firstName.charAt(0).toUpperCase()}
-              </span>
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
+              {profileImage ? (
+                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white text-xs font-bold">
+                  {firstName.charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-800 truncate">{user.name || "Harsh"}</p>
+              <p className="text-xs font-semibold text-gray-800 truncate">{user.first_name ? `${user.first_name} ${user.last_name || ''}` : (user.name || "User")}</p>
               <p className="text-[10px] text-gray-400 truncate">{user.email || "Personal"}</p>
             </div>
             <button

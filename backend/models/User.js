@@ -4,10 +4,20 @@ const UserSchema = new mongoose.Schema({
     first_name: { type: String, required: true },
     last_name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true }, // Ideally hashed, but keeping simple for local dev as requested
+    password: { type: String, required: true },
     role: {
-        name: { type: String, default: 'Asset Engineer' },
-        permissions: [{ type: Object }] // Flexible for now
+        name: { type: String, default: 'User' },
+    },
+    permissionMode: {
+        type: String,
+        enum: ['role', 'custom'],
+        default: 'role'
+    },
+    permissions: [{ type: String }],
+    accountConfig: {
+        loginAccess: { type: Boolean, default: true },
+        mustChangePassword: { type: Boolean, default: false },
+        twoFactorRequired: { type: Boolean, default: false }
     },
     company: {
         name: { type: String, default: 'Indra holdings' },
@@ -20,7 +30,7 @@ const UserSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['pending', 'approved', 'blocked'],
-        default: 'pending'
+        default: 'approved'
     },
     createdAt: {
         type: Date,

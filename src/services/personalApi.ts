@@ -194,16 +194,110 @@ export const socialApi = {
 //  SETTINGS
 // ═══════════════════════════════════════════════════════════════════════════════
 export interface IUserSettings {
-    displayName: string; bio: string; timezone: string; theme: 'light' | 'dark' | 'system';
+    displayName: string; profileImage: string; bio: string; timezone: string; theme: 'light' | 'dark' | 'system';
     notifications: {
         dailyDigest: boolean; habitReminders: boolean;
         goalDeadlines: boolean; contactFollowUp: boolean;
+    };
+    integrations: {
+        whatsappEnabled: boolean;
+        whatsappNumber: string;
+        telegramEnabled: boolean;
+        telegramUsername: string;
+    };
+    workflowManager?: {
+        connections: {
+            instagram: boolean;
+            googleDrive: boolean;
+            captionEngine: boolean;
+        };
+        ioPoints: {
+            driveInputFolderId: string;
+            dmInputMode: 'webhook' | 'manual' | 'hybrid';
+            instagramOutputAccountId: string;
+            archiveOutputFolderId: string;
+            alertOutputChannel: string;
+        };
+        dmRules: {
+            leadKeywords: string;
+            urgentKeywords: string;
+            autoAcknowledge: boolean;
+            slaMinutes: number;
+        };
     };
     geminiApiKey: string; currency: string; dateFormat: string;
 }
 export const settingsApi = {
     get: () => api.get('/settings').then(data),
     save: (d: Partial<IUserSettings>) => api.put('/settings', d).then(data),
+};
+
+export interface ICalendarEvent {
+    _id: string;
+    title: string;
+    start: string;
+    end?: string;
+    calendar: string;
+    allDay?: boolean;
+}
+export const calendarApi = {
+    getAll: () => api.get('/calendar/events').then(data),
+    create: (d: Omit<ICalendarEvent, '_id'>) => api.post('/calendar/events', d).then(data),
+    update: (id: string, d: Partial<ICalendarEvent>) => api.put(`/calendar/events/${id}`, d).then(data),
+    remove: (id: string) => api.delete(`/calendar/events/${id}`).then(data),
+};
+
+export interface IWorkflowConfig {
+    connections: {
+        instagram: boolean;
+        googleDrive: boolean;
+        captionEngine: boolean;
+    };
+    ioPoints: {
+        driveInputFolderId: string;
+        dmInputMode: 'webhook' | 'manual' | 'hybrid';
+        instagramOutputAccountId: string;
+        archiveOutputFolderId: string;
+        alertOutputChannel: string;
+    };
+    dmRules: {
+        leadKeywords: string;
+        urgentKeywords: string;
+        autoAcknowledge: boolean;
+        slaMinutes: number;
+    };
+}
+
+export interface IWorkflowQueueItem {
+    _id: string;
+    fileName: string;
+    driveFolder: string;
+    caption: string;
+    status: 'draft' | 'ready' | 'scheduled' | 'posted';
+    scheduledAt: string;
+}
+
+export interface IWorkflowDMActivity {
+    _id: string;
+    sender: string;
+    message: string;
+    category: 'lead' | 'support' | 'spam' | 'general';
+    status: 'new' | 'acknowledged' | 'escalated' | 'resolved';
+    receivedAt: string;
+}
+
+export const workflowApi = {
+    getConfig: () => api.get('/workflow/config').then(data) as Promise<IWorkflowConfig>,
+    saveConfig: (d: IWorkflowConfig) => api.put('/workflow/config', d).then(data) as Promise<IWorkflowConfig>,
+
+    getQueue: () => api.get('/workflow/queue').then(data) as Promise<IWorkflowQueueItem[]>,
+    createQueueItem: (d: Omit<IWorkflowQueueItem, '_id'>) => api.post('/workflow/queue', d).then(data) as Promise<IWorkflowQueueItem>,
+    updateQueueItem: (id: string, d: Partial<IWorkflowQueueItem>) => api.put(`/workflow/queue/${id}`, d).then(data) as Promise<IWorkflowQueueItem>,
+    deleteQueueItem: (id: string) => api.delete(`/workflow/queue/${id}`).then(data),
+
+    getDMActivity: () => api.get('/workflow/dm').then(data) as Promise<IWorkflowDMActivity[]>,
+    createDMActivity: (d: Omit<IWorkflowDMActivity, '_id'>) => api.post('/workflow/dm', d).then(data) as Promise<IWorkflowDMActivity>,
+    updateDMActivity: (id: string, d: Partial<IWorkflowDMActivity>) => api.put(`/workflow/dm/${id}`, d).then(data) as Promise<IWorkflowDMActivity>,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
