@@ -26,10 +26,13 @@ export interface ICapture {
     _id: string;
     type: 'Idea' | 'Task' | 'Article' | 'Follow-up' | 'Money' | 'Urgent' | 'Journal';
     text: string; emoji: string; createdAt: string;
+    rawText?: string;
+    isRefined?: boolean;
 }
 export const captureApi = {
     getAll: () => api.get('/captures').then(data),
     create: (d: Omit<ICapture, '_id' | 'createdAt'>) => api.post('/captures', d).then(data),
+    update: (id: string, d: Partial<ICapture>) => api.put(`/captures/${id}`, d).then(data),
     remove: (id: string) => api.delete(`/captures/${id}`).then(data),
 };
 

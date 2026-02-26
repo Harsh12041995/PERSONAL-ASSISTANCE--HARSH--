@@ -19,7 +19,6 @@ const connectDB = async () => {
     try {
         const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/harsh_personal', {
             // Options to help with connectivity issues in some environments
-            family: 4, // Enforce IPv4
             connectTimeoutMS: 10000,
             socketTimeoutMS: 45000,
         });
@@ -27,9 +26,9 @@ const connectDB = async () => {
     } catch (error) {
         console.error('❌  MongoDB Error:', error.message);
         // Don't exit process in dev, but log details
-        if (error.code === 'ECONNREFUSED') {
-            console.error('💡 TIP: This looks like a DNS or network problem with MongoDB Atlas.');
-            console.error('   Try checking your internet connection or if your IP is whitelisted in Atlas.');
+        if (error.code === 'ECONNREFUSED' || error.name === 'MongoServerSelectionError') {
+            console.error('💡 TIP: This looks like a network or DNS problem with MongoDB.');
+            console.error('   Check if your internet is stable and if the MongoDB URI is correct.');
         }
     }
 };
@@ -44,6 +43,9 @@ app.use('/api/v1/personal', protect, require('./routes/personal'));
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/admin', require('./routes/admin'));
+
+// ── Chat / AI routes ─────────────────────────────────────────────────────────
+app.use('/api/v1/chat', require('./routes/chat'));
 
 // ── Notification routes ──────────────────────────────────────────────────────
 app.use('/api/v1/notifications', require('./routes/notification'));

@@ -85,12 +85,6 @@ const WorkflowIcon = () => (
   </svg>
 );
 
-const AIToolsIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-    <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v1.152a8.252 8.252 0 016.097 6.096H20a.75.75 0 010 1.5h-1.056a8.254 8.254 0 01-6.194 6.194V19.5a.75.75 0 01-1.5 0v-1.558a8.254 8.254 0 01-6.194-6.194H4a.75.75 0 010-1.5h1.152a8.252 8.252 0 016.096-6.097V3a.75.75 0 01.75-.75zM6.75 11.25a5.25 5.25 0 1010.5 0 5.25 5.25 0 00-10.5 0z" clipRule="evenodd" />
-  </svg>
-);
-
 const AiIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
     <path d="M16.5 7.5h-9v9h9v-9z" />
@@ -140,7 +134,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "social", icon: <SocialIcon />, name: "Social Life", path: "/social", accent: "bg-fuchsia-500", emoji: "📱" },
   { id: "blogs", icon: <BlogsIcon />, name: "Blogs", path: "/blogs", accent: "bg-cyan-500", emoji: "🌍" },
   { id: "workflow", icon: <WorkflowIcon />, name: "Workflow Manager", path: "/workflow-manager", accent: "bg-emerald-500", emoji: "⚙️" },
-  { id: "ai-tools", icon: <AIToolsIcon />, name: "AI Tools Hub", path: "/ai-tools", accent: "bg-sky-500", emoji: "🧰" },
   { id: "ai", icon: <AiIcon />, name: "AI Assistant", path: "/ai-chat", accent: "bg-cyan-500", emoji: "🤖" },
 ];
 

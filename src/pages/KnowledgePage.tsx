@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { knowledgeApi, INote } from '../services/personalApi';
+import { aiIntelligence } from '../services/aiIntelligence';
 
 const TYPES: { id: INote['type']; emoji: string; color: string }[] = [
     { id: 'Note', emoji: '📝', color: 'bg-violet-100 text-violet-700' },
@@ -20,6 +21,8 @@ export default function KnowledgePage() {
     const [tagInput, setTagInput] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [summarizing, setSummarizing] = useState(false);
+    const [noteSummary, setNoteSummary] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         try { setNotes(await knowledgeApi.getAll()); }
@@ -145,6 +148,34 @@ export default function KnowledgePage() {
                         </div>
                         <h2 className="text-lg font-bold text-gray-900 mb-3">{selected.title}</h2>
                         {selected.content && <p className="text-sm text-gray-600 leading-relaxed mb-4 whitespace-pre-wrap">{selected.content}</p>}
+
+                        {noteSummary ? (
+                            <div className="mb-4 p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                                <h4 className="text-xs font-bold text-violet-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    <span>✨ AI Summary</span>
+                                </h4>
+                                <p className="text-sm text-gray-700 leading-relaxed italic">{noteSummary}</p>
+                            </div>
+                        ) : selected.content && selected.content.length > 100 && (
+                            <button
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    setSummarizing(true);
+                                    try {
+                                        const res = await aiIntelligence.summarizeNote(selected._id);
+                                        setNoteSummary(res);
+                                    } catch {
+                                        setError('AI Summarization failed.');
+                                    } finally {
+                                        setSummarizing(false);
+                                    }
+                                }}
+                                disabled={summarizing}
+                                className="mb-4 w-full py-2 bg-violet-50 hover:bg-violet-100 text-violet-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                                {summarizing ? <div className="animate-spin h-3 w-3 border-b-2 border-violet-600 rounded-full" /> : '✨ Summarize with AI'}
+                            </button>
+                        )}
+
                         {selected.tags.length > 0 && <div className="flex flex-wrap gap-1">{selected.tags.map(t => <span key={t} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">#{t}</span>)}</div>}
                     </div>
                 </div>

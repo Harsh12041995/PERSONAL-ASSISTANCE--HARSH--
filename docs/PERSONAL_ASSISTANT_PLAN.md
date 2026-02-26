@@ -61,6 +61,15 @@ The existing ticket system becomes your **universal capture tool** — a place t
 
 **New Backend model: `backend/models/Capture.js`**
 
+#### 🎙️ Voice Capture Upgrade (Implemented)
+- Live speech transcription with interim + final text handling
+- Start / Pause / Resume / Stop workflow for better control
+- Mic level indicator + recording duration + word count
+- Draft transcript auto-recovery (localStorage) on accidental close/reload
+- Raw transcript auto-saved first, then optional AI refinement
+- Multi-language support baseline: `en-US`, `en-IN`, `hi-IN`
+- Manual fallback actions: copy text, clear draft, close safely
+
 ---
 
 ### 3. ✅ TASK MANAGER (New Module)

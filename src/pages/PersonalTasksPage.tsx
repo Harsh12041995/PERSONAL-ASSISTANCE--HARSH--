@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { taskApi, ITask } from '../services/personalApi';
+import { aiIntelligence } from '../services/aiIntelligence';
 
 type TabId = 'today' | 'week' | 'someday';
 
@@ -27,6 +28,8 @@ export default function PersonalTasksPage() {
     const [newArea, setNewArea] = useState('Work');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [analyzing, setAnalyzing] = useState(false);
+    const [suggestions, setSuggestions] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         try {
@@ -77,6 +80,41 @@ export default function PersonalTasksPage() {
             </div>
 
             {error && <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-xl">{error}</p>}
+
+            {/* AI Suggestions */}
+            {suggestions ? (
+                <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <svg className="w-12 h-12 text-violet-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.85 8.65L22 9.25L16.5 13.92L18.18 21L12 17.27L5.82 21L7.5 13.92L2 9.25L9.15 8.65L12 2Z" /></svg>
+                    </div>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-bold text-violet-800 flex items-center gap-2">
+                            <span>✨ AI Strategy for Today</span>
+                        </h3>
+                        <button onClick={() => setSuggestions(null)} className="text-[10px] font-bold text-violet-400 hover:text-violet-600 uppercase tracking-tighter">Dismiss</button>
+                    </div>
+                    <div className="text-sm text-indigo-900/80 leading-relaxed whitespace-pre-wrap prose-sm max-w-none">
+                        {suggestions}
+                    </div>
+                </div>
+            ) : (
+                <button
+                    onClick={async () => {
+                        setAnalyzing(true);
+                        try {
+                            const res = await aiIntelligence.analyzeTasks();
+                            setSuggestions(res);
+                        } catch {
+                            setError('AI Task Analysis failed.');
+                        } finally {
+                            setAnalyzing(false);
+                        }
+                    }}
+                    disabled={analyzing}
+                    className="w-full py-3 bg-white border border-violet-100 hover:border-violet-200 rounded-2xl text-violet-600 text-sm font-bold shadow-sm hover:shadow transition-all flex items-center justify-center gap-2">
+                    {analyzing ? <div className="animate-spin h-4 w-4 border-b-2 border-violet-600 rounded-full" /> : '✨ Smart Prioritize with AI'}
+                </button>
+            )}
 
             {/* Tabs */}
             <div className="flex gap-2">

@@ -37,7 +37,6 @@ import SettingsPage from "./pages/SettingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import BlogsPage from "./pages/BlogsPage";
 import WorkflowManagerPage from "./pages/WorkflowManagerPage";
-import AIToolsHubPage from "./pages/AIToolsHubPage";
 import UserManagement from "./pages/Admin/UserManagement";
 import PermissionMatrix from "./pages/Admin/PermissionMatrix";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -83,7 +82,6 @@ export default function App() {
           <Route path="/social" element={<ProtectedRoute requiredPermission="social"><SocialPage /></ProtectedRoute>} />
           <Route path="/blogs" element={<ProtectedRoute requiredPermission="blogs"><BlogsPage /></ProtectedRoute>} />
           <Route path="/workflow-manager" element={<ProtectedRoute requiredPermission="social"><WorkflowManagerPage /></ProtectedRoute>} />
-          <Route path="/ai-tools" element={<ProtectedRoute requiredPermission="ai_chat"><AIToolsHubPage /></ProtectedRoute>} />
           <Route path="/ai-chat" element={<ProtectedRoute requiredPermission="ai_chat"><AiChatPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><UserManagement /></ProtectedRoute>} />
           <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><PermissionMatrix /></ProtectedRoute>} />

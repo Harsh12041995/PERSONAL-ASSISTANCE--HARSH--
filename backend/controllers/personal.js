@@ -20,6 +20,7 @@ const UserSettings = require('../models/UserSettings');
 const CalendarEvent = require('../models/CalendarEvent');
 const WorkflowQueueItem = require('../models/WorkflowQueueItem');
 const WorkflowDMActivity = require('../models/WorkflowDMActivity');
+const aiService = require('../utils/aiService');
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
@@ -37,8 +38,27 @@ exports.getCaptures = async (req, res) => {
 
 exports.createCapture = async (req, res) => {
     try {
-        const { type, text, emoji } = req.body;
-        const capture = await Capture.create({ userId: req.user._id, type, text, emoji });
+        const { type, text, emoji, rawText, isRefined } = req.body;
+        const capture = await Capture.create({
+            userId: req.user._id,
+            type,
+            text,
+            emoji,
+            rawText: rawText || text,
+            isRefined: isRefined || false
+        });
+        ok(res, capture);
+    } catch (e) { fail(res, e); }
+};
+
+exports.updateCapture = async (req, res) => {
+    try {
+        const capture = await Capture.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user._id },
+            req.body,
+            { new: true }
+        );
+        if (!capture) return fail(res, 'Capture not found', 404);
         ok(res, capture);
     } catch (e) { fail(res, e); }
 };
@@ -83,6 +103,16 @@ exports.deleteTask = async (req, res) => {
     try {
         await Task.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
         ok(res, { deleted: req.params.id });
+    } catch (e) { fail(res, e); }
+};
+
+exports.analyzeTasks = async (req, res) => {
+    try {
+        const tasks = await Task.find({ userId: req.user._id, done: false });
+        if (tasks.length === 0) return ok(res, "No active tasks to analyze.");
+
+        const analysis = await aiService.analyzeTasks(tasks);
+        ok(res, analysis);
     } catch (e) { fail(res, e); }
 };
 
@@ -144,6 +174,16 @@ exports.deleteNote = async (req, res) => {
     try {
         await Knowledge.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
         ok(res, { deleted: req.params.id });
+    } catch (e) { fail(res, e); }
+};
+
+exports.summarizeNote = async (req, res) => {
+    try {
+        const note = await Knowledge.findOne({ _id: req.params.id, userId: req.user._id });
+        if (!note) return fail(res, 'Note not found', 404);
+
+        const summary = await aiService.summarize(note.content);
+        ok(res, summary);
     } catch (e) { fail(res, e); }
 };
 
@@ -231,6 +271,36 @@ exports.getDashboardStats = async (req, res) => {
             goalsTotal: goalsAll.length,
             habitStreak: healthToday?.habits ? Object.values(healthToday.habits).filter(Boolean).length : 0,
         });
+    } catch (e) { fail(res, e); }
+};
+
+exports.getAiDashboardInsights = async (req, res) => {
+    try {
+        const uid = req.user._id;
+        const today = new Date().toISOString().slice(0, 10);
+
+        const [stats, tasks] = await Promise.all([
+            Task.aggregate([
+                { $match: { userId: uid } },
+                { $group: { _id: '$done', count: { $sum: 1 } } }
+            ]),
+            Task.find({ userId: uid, done: false }).limit(5)
+        ]);
+
+        const prompt = `Based on these stats, give me 3 super-short proactive "Smart Insights" or encouragements for my dashboard. One for productivity, one for mindset, and one general tip. Keep each insight under 12 words.\n\nStats: ${JSON.stringify(stats)}\nNext tasks: ${tasks.map(t => t.title).join(', ')}`;
+
+        const insights = await aiService.generateText(prompt, "You are a proactive life coach. Be inspiring and extremely concise.");
+        ok(res, insights.split('\n').filter(line => line.trim().length > 0));
+    } catch (e) { fail(res, e); }
+};
+
+exports.refineTranscript = async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text) return fail(res, 'No text provided', 400);
+
+        const refined = await aiService.refineTranscript(text);
+        ok(res, refined);
     } catch (e) { fail(res, e); }
 };
 // ─── Export all data ──────────────────────────────────────────────────────────
