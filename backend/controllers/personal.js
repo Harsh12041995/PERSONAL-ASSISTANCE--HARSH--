@@ -409,6 +409,18 @@ const workflowDefaultConfig = {
         autoAcknowledge: true,
         slaMinutes: 30,
     },
+    browserWorkspace: {
+        homeUrl: 'https://chatgpt.com',
+        allowedDomains: 'chatgpt.com,claude.ai,gemini.google.com',
+        allowAnyUrl: true,
+        sessionTracking: true,
+        recordingEnabled: true,
+        integrationWebhookUrl: '',
+        integrationAuthToken: '',
+        emitVisitEvents: true,
+        emitRecordingEvents: true,
+        socialMode: true,
+    },
 };
 
 exports.getWorkflowConfig = async (req, res) => {
@@ -429,6 +441,7 @@ exports.saveWorkflowConfig = async (req, res) => {
                     connections: { ...workflowDefaultConfig.connections, ...(payload.connections || {}) },
                     ioPoints: { ...workflowDefaultConfig.ioPoints, ...(payload.ioPoints || {}) },
                     dmRules: { ...workflowDefaultConfig.dmRules, ...(payload.dmRules || {}) },
+                    browserWorkspace: { ...workflowDefaultConfig.browserWorkspace, ...(payload.browserWorkspace || {}) },
                 },
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }

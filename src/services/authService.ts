@@ -45,7 +45,7 @@ interface SignInRole {
   name: string;
   key?: number;
   description?: string;
-  permissions: SignInPermission[];
+  permissions: Array<SignInPermission | string>;
   is_system_role?: boolean;
   isActive?: boolean;
 }
@@ -942,8 +942,14 @@ export const authService = {
   },
 };
 
-const mapPermissions = (permissions: SignInPermission[]): PermissionSet => {
+const mapPermissions = (permissions: Array<SignInPermission | string>): PermissionSet => {
   return permissions.reduce<PermissionSet>((acc, permission) => {
+    if (typeof permission === "string") {
+      const key = permission.toLowerCase();
+      if (!acc[key]) acc[key] = ["view"];
+      return acc;
+    }
+
     if (!permission?.module || !permission?.action) {
       return acc;
     }

@@ -5,10 +5,11 @@ import { useAuth } from "../context/AuthContext";
 interface ProtectedRouteProps {
     children: JSX.Element;
     allowedRoles?: string[];
+    requiredPermission?: string | string[];
 }
 
-const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps): JSX.Element => {
-    const { token, role, isLoading, isInitialized } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles, requiredPermission }: ProtectedRouteProps): JSX.Element => {
+    const { token, role, isLoading, isInitialized, hasFeatureAccess } = useAuth();
 
     if (isLoading || !isInitialized) {
         return (
@@ -29,6 +30,14 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps): JSX.El
 
     if (allowedRoles && role && !allowedRoles.includes(role.toLowerCase())) {
         return <Navigate to="/" replace />;
+    }
+
+    if (requiredPermission) {
+        const required = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
+        const allowed = required.some((permissionId) => hasFeatureAccess(permissionId));
+        if (!allowed) {
+            return <Navigate to="/" replace />;
+        }
     }
 
     return children;

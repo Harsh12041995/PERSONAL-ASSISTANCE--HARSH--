@@ -72,23 +72,23 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<ProtectedRoute><Home /></ProtectedRoute>} />
 
-          <Route path="/capture" element={<ProtectedRoute><CapturePage /></ProtectedRoute>} />
-          <Route path="/personal-tasks" element={<ProtectedRoute><PersonalTasksPage /></ProtectedRoute>} />
-          <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-          <Route path="/finance" element={<ProtectedRoute><FinancePage /></ProtectedRoute>} />
-          <Route path="/knowledge" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
-          <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
-          <Route path="/health" element={<ProtectedRoute><HealthPage /></ProtectedRoute>} />
-          <Route path="/career" element={<ProtectedRoute><CareerPage /></ProtectedRoute>} />
-          <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
-          <Route path="/blogs" element={<ProtectedRoute><BlogsPage /></ProtectedRoute>} />
-          <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManagerPage /></ProtectedRoute>} />
-          <Route path="/ai-tools" element={<ProtectedRoute><AIToolsHubPage /></ProtectedRoute>} />
-          <Route path="/ai-chat" element={<ProtectedRoute><AiChatPage /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']}><UserManagement /></ProtectedRoute>} />
-          <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']}><PermissionMatrix /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/capture" element={<ProtectedRoute requiredPermission="tasks"><CapturePage /></ProtectedRoute>} />
+          <Route path="/personal-tasks" element={<ProtectedRoute requiredPermission="tasks"><PersonalTasksPage /></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute requiredPermission="calendar"><Calendar /></ProtectedRoute>} />
+          <Route path="/finance" element={<ProtectedRoute requiredPermission="finance"><FinancePage /></ProtectedRoute>} />
+          <Route path="/knowledge" element={<ProtectedRoute requiredPermission="tasks"><KnowledgePage /></ProtectedRoute>} />
+          <Route path="/goals" element={<ProtectedRoute requiredPermission="tasks"><GoalsPage /></ProtectedRoute>} />
+          <Route path="/health" element={<ProtectedRoute requiredPermission="tasks"><HealthPage /></ProtectedRoute>} />
+          <Route path="/career" element={<ProtectedRoute requiredPermission="tasks"><CareerPage /></ProtectedRoute>} />
+          <Route path="/social" element={<ProtectedRoute requiredPermission="social"><SocialPage /></ProtectedRoute>} />
+          <Route path="/blogs" element={<ProtectedRoute requiredPermission="blogs"><BlogsPage /></ProtectedRoute>} />
+          <Route path="/workflow-manager" element={<ProtectedRoute requiredPermission="social"><WorkflowManagerPage /></ProtectedRoute>} />
+          <Route path="/ai-tools" element={<ProtectedRoute requiredPermission="ai_chat"><AIToolsHubPage /></ProtectedRoute>} />
+          <Route path="/ai-chat" element={<ProtectedRoute requiredPermission="ai_chat"><AiChatPage /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><PermissionMatrix /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute requiredPermission="tasks"><SettingsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute requiredPermission="tasks"><ProfilePage /></ProtectedRoute>} />
         </Route>
 
         {/* 404 */}

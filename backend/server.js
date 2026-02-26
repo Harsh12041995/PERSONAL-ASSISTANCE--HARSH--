@@ -15,9 +15,26 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/harsh_personal')
-    .then(() => console.log('✅  MongoDB Connected — harsh_personal'))
-    .catch(err => console.log('❌  MongoDB Error:', err));
+const connectDB = async () => {
+    try {
+        const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/harsh_personal', {
+            // Options to help with connectivity issues in some environments
+            family: 4, // Enforce IPv4
+            connectTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+        });
+        console.log(`✅  MongoDB Connected — ${conn.connection.host}`);
+    } catch (error) {
+        console.error('❌  MongoDB Error:', error.message);
+        // Don't exit process in dev, but log details
+        if (error.code === 'ECONNREFUSED') {
+            console.error('💡 TIP: This looks like a DNS or network problem with MongoDB Atlas.');
+            console.error('   Try checking your internet connection or if your IP is whitelisted in Atlas.');
+        }
+    }
+};
+
+connectDB();
 
 // ── Public routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', require('./routes/auth'));

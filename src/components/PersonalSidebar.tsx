@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSidebar } from "../context/SidebarContext";
 import { authService } from "../services/authService";
+import { isRouteAllowedByPermission } from "../utils/featurePermissions";
 
 // ─── Icon Components (inline SVGs for zero-dependency icons) ──────────────────
 
@@ -150,7 +151,7 @@ const BOTTOM_ITEMS: NavItem[] = [
 // ─── Main Sidebar Component ───────────────────────────────────────────────────
 
 const PersonalSidebar: React.FC = () => {
-  const { user, role } = useAuth();
+  const { user, role, hasFeatureAccess } = useAuth();
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -198,6 +199,10 @@ const PersonalSidebar: React.FC = () => {
   const firstName = user?.first_name || user?.name?.split(" ")[0] || "User";
 
   const renderNavItem = (item: NavItem) => {
+    if (!isRouteAllowedByPermission(item.path, hasFeatureAccess)) {
+      return null;
+    }
+
     const active = isActive(item.path);
     const hovered = hoveredItem === item.id;
 
@@ -310,7 +315,7 @@ const PersonalSidebar: React.FC = () => {
         )}
         <ul className="space-y-0.5">
           {BOTTOM_ITEMS.map(renderNavItem)}
-          {(role === 'owner' || role === 'admin') && (
+          {(role === 'owner' || role === 'admin') && hasFeatureAccess('user_management') && (
             <>
               {renderNavItem({
                 id: "admin-users",

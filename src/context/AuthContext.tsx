@@ -44,6 +44,7 @@ interface AuthContextType extends AuthState {
   ) => void;
   logout: () => void;
   hasPermission: (module: string, action: string) => boolean;
+  hasFeatureAccess: (permissionId: string) => boolean;
   refreshAuth: () => Promise<boolean>;
   isTokenExpired: () => boolean;
   isTokenExpiringSoon: () => boolean;
@@ -285,6 +286,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return modulePermissions?.includes(action) || false;
   };
 
+  const hasFeatureAccess = (permissionId: string): boolean => {
+    if (!permissionId) return true;
+    const roleName = state.role?.toLowerCase();
+    if (roleName === "owner" || roleName === "admin") return true;
+
+    const directPermissions: string[] = Array.isArray(state.user?.permissions)
+      ? state.user.permissions
+      : [];
+    if (directPermissions.includes(permissionId)) return true;
+
+    if (state.permissions) {
+      return Object.keys(state.permissions).some((moduleKey) => {
+        if (moduleKey === permissionId) return true;
+        const actions = state.permissions?.[moduleKey] || [];
+        return actions.includes(permissionId);
+      });
+    }
+
+    return false;
+  };
+
   const isTokenExpired = (): boolean => {
     return authService.isTokenExpired();
   };
@@ -300,6 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         hasPermission,
+        hasFeatureAccess,
         refreshAuth,
         isTokenExpired,
         isTokenExpiringSoon,

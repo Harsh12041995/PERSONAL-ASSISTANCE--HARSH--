@@ -266,6 +266,18 @@ export interface IWorkflowConfig {
         autoAcknowledge: boolean;
         slaMinutes: number;
     };
+    browserWorkspace?: {
+        homeUrl: string;
+        allowedDomains: string;
+        allowAnyUrl?: boolean;
+        sessionTracking: boolean;
+        recordingEnabled: boolean;
+        integrationWebhookUrl: string;
+        integrationAuthToken: string;
+        emitVisitEvents: boolean;
+        emitRecordingEvents: boolean;
+        socialMode?: boolean;
+    };
 }
 
 export interface IWorkflowQueueItem {

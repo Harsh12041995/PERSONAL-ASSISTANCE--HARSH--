@@ -2,6 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const p = require('../controllers/personal');
+const { hasPermission } = require('../middleware/auth');
+
+router.use(['/captures', '/tasks', '/knowledge', '/goals', '/health', '/journal', '/career', '/settings', '/stats', '/export'], hasPermission('tasks'));
+router.use(['/finance', '/budgets'], hasPermission('finance'));
+router.use('/social', hasPermission('social'));
+router.use('/calendar', hasPermission('calendar'));
+router.use('/workflow', hasPermission('social'));
 
 // ── Captures ──────────────────────────────────────────────────────────────────
 router.get('/captures', p.getCaptures);
