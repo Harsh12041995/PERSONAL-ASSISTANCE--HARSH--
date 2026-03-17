@@ -3,10 +3,56 @@ const DEFAULT_MODEL = 'qwen3:4b';
 const OLLAMA_URL = 'http://127.0.0.1:11434/api/chat';
 
 /**
- * Generic text generation using Ollama
+ * Generic text generation helper that supports multiple providers:
+ * 1. Gemini (if key provided)
+ * 2. ChatGPT (if key provided)
+ * 3. Ollama (local fallback)
  */
-const generateText = async (prompt, systemPrompt = "You are a helpful assistant.") => {
+const generateText = async (prompt, systemPrompt = "You are a helpful assistant.", config = {}) => {
+    const { geminiKey, chatgptKey } = config;
+
+    // 1. Try Gemini
+    if (geminiKey) {
+        try {
+            console.log('🤖 Using Gemini API');
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }]
+                })
+            });
+            const data = await response.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        } catch (e) { console.error('Gemini Error:', e.message); }
+    }
+
+    // 2. Try ChatGPT
+    if (chatgptKey) {
+        try {
+            console.log('🤖 Using ChatGPT API');
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${chatgptKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: prompt }
+                    ]
+                })
+            });
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || '';
+        } catch (e) { console.error('ChatGPT Error:', e.message); }
+    }
+
+    // 3. Fallback to Ollama (Local)
     try {
+        console.log('🤖 Using Ollama (Local)');
         const response = await fetch(OLLAMA_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -19,15 +65,12 @@ const generateText = async (prompt, systemPrompt = "You are a helpful assistant.
                 stream: false
             })
         });
-
-        if (!response.ok) {
-            throw new Error(`Ollama error: ${response.statusText}`);
-        }
-
         const data = await response.json();
         return data.message?.content || '';
     } catch (error) {
-        console.error('[AiService] Error:', error.message);
+        if (!geminiKey && !chatgptKey) {
+            throw new Error('Local AI (Ollama) is not running and no API keys found in Settings.');
+        }
         throw error;
     }
 };
@@ -35,35 +78,35 @@ const generateText = async (prompt, systemPrompt = "You are a helpful assistant.
 /**
  * Specialized: Analyze a list of tasks for prioritization
  */
-const analyzeTasks = async (tasks) => {
+const analyzeTasks = async (tasks, config = {}) => {
     const taskList = tasks.map(t => `- [${t.priority}] ${t.title} (${t.area})`).join('\n');
     const prompt = `Analyze these tasks and suggest the top 3 priorities for today. Group them logically and provide a brief rationale for each priority.\n\nTasks:\n${taskList}`;
 
-    return await generateText(prompt, "You are a productivity expert. Be concise and professional.");
+    return await generateText(prompt, "You are a productivity expert. Be concise and professional.", config);
 };
 
 /**
  * Specialized: Summarize long text
  */
-const summarize = async (text) => {
+const summarize = async (text, config = {}) => {
     const prompt = `Provide a concise TL;DR summary of the following text. Use bullet points if necessary.\n\nText:\n${text}`;
 
-    return await generateText(prompt, "You are a skilled copywriter. Focus on key takeaways.");
+    return await generateText(prompt, "You are a skilled copywriter. Focus on key takeaways.", config);
 };
 
 /**
  * Specialized: Refine raw transcript from voice-to-text
  */
-const refineTranscript = async (text) => {
+const refineTranscript = async (text, config = {}) => {
     const prompt = `Refine the following raw voice transcription. Remove filler words (uh, um, like), correct obvious mishearings, and add proper punctuation and capitalization to make it readable while keeping the original meaning and tone.\n\nRaw Transcript:\n${text}`;
 
-    return await generateText(prompt, "You are an expert editor specializing in transcribing speech. Make the text polished and professional.");
+    return await generateText(prompt, "You are an expert editor specializing in transcribing speech. Make the text polished and professional.", config);
 };
 
 /**
  * Specialized: Parse CV text into structured JSON
  */
-const parseCv = async (text) => {
+const parseCv = async (text, config = {}) => {
     const prompt = `Extract structured information from the following CV text. Return ONLY a valid JSON object with this exact structure:
 {
   "profile": {
@@ -80,7 +123,7 @@ const parseCv = async (text) => {
 CV Text:
 ${text}`;
 
-    const result = await generateText(prompt, "You are a specialized HR Data Parser. Output ONLY raw JSON. No markdown, no explanation.");
+    const result = await generateText(prompt, "You are a specialized HR Data Parser. Output ONLY raw JSON. No markdown, no explanation.", config);
     try {
         // Remove markdown code blocks if present
         const cleanJson = result.replace(/```json|```/g, '').trim();
@@ -94,7 +137,7 @@ ${text}`;
 /**
  * Specialized: Compare a job description against user skills
  */
-const compareJob = async (jobDescription, userSkills) => {
+const compareJob = async (jobDescription, userSkills, config = {}) => {
     const skillsList = userSkills.map(s => `${s.name} (${s.level}%)`).join(', ');
     const prompt = `Act as an expert Technical Recruiter. Compare this Job Description against the candidate's skills.
 
@@ -112,7 +155,7 @@ Return ONLY a valid JSON object with this structure:
   "summary": "string" (1-2 sentence verdict)
 }`;
 
-    const result = await generateText(prompt, "You are a specialized Career Strategist. Output ONLY raw JSON.");
+    const result = await generateText(prompt, "You are a specialized Career Strategist. Output ONLY raw JSON.", config);
     try {
         const cleanJson = result.replace(/```json|```/g, '').trim();
         return JSON.parse(cleanJson);

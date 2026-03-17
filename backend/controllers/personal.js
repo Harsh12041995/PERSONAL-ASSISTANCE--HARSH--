@@ -112,7 +112,9 @@ exports.analyzeTasks = async (req, res) => {
         const tasks = await Task.find({ userId: req.user._id, done: false });
         if (tasks.length === 0) return ok(res, "No active tasks to analyze.");
 
-        const analysis = await aiService.analyzeTasks(tasks);
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+        const analysis = await aiService.analyzeTasks(tasks, config);
         ok(res, analysis);
     } catch (e) { fail(res, e); }
 };
@@ -183,7 +185,9 @@ exports.summarizeNote = async (req, res) => {
         const note = await Knowledge.findOne({ _id: req.params.id, userId: req.user._id });
         if (!note) return fail(res, 'Note not found', 404);
 
-        const summary = await aiService.summarize(note.content);
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+        const summary = await aiService.summarize(note.content, config);
         ok(res, summary);
     } catch (e) { fail(res, e); }
 };
@@ -288,9 +292,11 @@ exports.getAiDashboardInsights = async (req, res) => {
             Task.find({ userId: uid, done: false }).limit(5)
         ]);
 
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
         const prompt = `Based on these stats, give me 3 super-short proactive "Smart Insights" or encouragements for my dashboard. One for productivity, one for mindset, and one general tip. Keep each insight under 12 words.\n\nStats: ${JSON.stringify(stats)}\nNext tasks: ${tasks.map(t => t.title).join(', ')}`;
 
-        const insights = await aiService.generateText(prompt, "You are a proactive life coach. Be inspiring and extremely concise.");
+        const insights = await aiService.generateText(prompt, "You are a proactive life coach. Be inspiring and extremely concise.", config);
         ok(res, insights.split('\n').filter(line => line.trim().length > 0));
     } catch (e) { fail(res, e); }
 };
@@ -300,7 +306,9 @@ exports.refineTranscript = async (req, res) => {
         const { text } = req.body;
         if (!text) return fail(res, 'No text provided', 400);
 
-        const refined = await aiService.refineTranscript(text);
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+        const refined = await aiService.refineTranscript(text, config);
         ok(res, refined);
     } catch (e) { fail(res, e); }
 };
@@ -426,8 +434,10 @@ exports.processCv = async (req, res) => {
         console.log("[ProcessCv] Received CV text, length:", cvText?.length);
         if (!cvText) return fail(res, 'No CV text provided', 400);
 
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
         console.log("[ProcessCv] Calling AI parse...");
-        const structuredData = await aiService.parseCv(cvText);
+        const structuredData = await aiService.parseCv(cvText, config);
         console.log("[ProcessCv] AI response received.");
         const { profile, skills } = structuredData;
 
@@ -470,7 +480,9 @@ exports.matchJob = async (req, res) => {
         if (!jobDescription) return fail(res, 'No job description provided', 400);
 
         const skills = await Skill.find({ userId: req.user._id });
-        const analysis = await aiService.compareJob(jobDescription, skills);
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+        const analysis = await aiService.compareJob(jobDescription, skills, config);
 
         ok(res, analysis);
     } catch (e) {

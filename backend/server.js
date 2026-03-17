@@ -72,11 +72,11 @@ const routes = {
     notifications: require('./routes/notification')
 };
 
-app.use([`${apiPrefix}/auth`, `${apiVersion}/auth`, '/api/auth'], routes.auth);
-app.use([`${apiPrefix}/personal`, `${apiVersion}/personal`, '/api/personal'], protect, routes.personal);
-app.use([`${apiPrefix}/admin`, `${apiVersion}/admin`, '/api/admin'], routes.admin);
-app.use([`${apiPrefix}/chat`, `${apiVersion}/chat`, '/api/chat'], routes.chat);
-app.use([`${apiPrefix}/notifications`, `${apiVersion}/notifications`, '/api/notifications'], routes.notifications);
+app.use([`${apiPrefix}/auth`, `${apiVersion}/auth`, '/api/auth', '/auth'], routes.auth);
+app.use([`${apiPrefix}/personal`, `${apiVersion}/personal`, '/api/personal', '/personal'], protect, routes.personal);
+app.use([`${apiPrefix}/admin`, `${apiVersion}/admin`, '/api/admin', '/admin'], routes.admin);
+app.use([`${apiPrefix}/chat`, `${apiVersion}/chat`, '/api/chat', '/chat'], routes.chat);
+app.use([`${apiPrefix}/notifications`, `${apiVersion}/notifications`, '/api/notifications', '/notifications'], routes.notifications);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get(['/health', '/api/health'], (_req, res) => {

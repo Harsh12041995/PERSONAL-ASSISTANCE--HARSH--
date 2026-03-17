@@ -1,5 +1,6 @@
-const ChatConversation = require('../models/ChatConversation');
 const ChatMessage = require('../models/ChatMessage');
+const UserSettings = require('../models/UserSettings');
+const aiService = require('../utils/aiService');
 
 // Helper for responses
 const ok = (res, data) => res.json({ success: true, data });
@@ -44,35 +45,22 @@ exports.chatWithBot = async (req, res) => {
             content: content.trim()
         });
 
-        // 3. Call Ollama
+        // 3. Call AI Service (Supports Gemini, ChatGPT, Ollama)
         let botText = '';
-        const DEFAULT_MODEL = 'qwen3:4b';
-        let providerInfo = { name: 'ollama', model: DEFAULT_MODEL };
+        let providerInfo = { name: 'ai-service', model: 'automatic' };
 
         try {
-            const response = await fetch('http://localhost:11434/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: DEFAULT_MODEL,
-                    messages: [
-                        { role: 'user', content: content }
-                    ],
-                    stream: false
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`Ollama error: ${response.statusText} ${JSON.stringify(errorData)}`);
+            const settings = await UserSettings.findOne({ userId });
+            const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+            
+            botText = await aiService.generateText(content, "You are a helpful personal assistant.", config);
+            
+            if (!botText) {
+                botText = "I encountered an error processing that.";
             }
-
-            const data = await response.json();
-            botText = data.message?.content || 'I encountered an error processing that.';
-            providerInfo.model = data.model || DEFAULT_MODEL;
-        } catch (ollamaErr) {
-            console.error('[ChatController] Ollama connection failed:', ollamaErr.message);
-            botText = "I'm sorry, I couldn't connect to my local intelligence engine (Ollama). Please ensure it is running and you have pulled the 'qwen3:4b' model.";
+        } catch (aiErr) {
+            console.error('[ChatController] AI Service failed:', aiErr.message);
+            botText = "I'm sorry, I couldn't connect to my intelligence engine. Please ensure your API keys are set in Settings or local Ollama is running.";
             providerInfo.name = 'error-fallback';
         }
 
