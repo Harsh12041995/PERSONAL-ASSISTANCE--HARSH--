@@ -61,4 +61,9 @@ app.get('/health', (_req, res) => {
     });
 });
 
-app.listen(PORT, () => console.log(`🚀  Backend running on http://localhost:${PORT}`));
+// Export the app for serverless deployment
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`🚀  Backend running on http://localhost:${PORT}`));
+}
+
+module.exports = app;
