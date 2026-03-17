@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { socialApi, IContact, IContentIdea, ISocialPlatform } from '../services/personalApi';
+import { socialApi, settingsApi, IContact, IContentIdea, ISocialPlatform, IUserSettings } from '../services/personalApi';
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = ['bg-blue-500', 'bg-pink-500', 'bg-violet-500', 'bg-orange-500', 'bg-emerald-500', 'bg-red-500', 'bg-indigo-500', 'bg-teal-500'];
@@ -21,6 +21,7 @@ const daysSince = (d: string) => { if (!d) return 999; return Math.floor((Date.n
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function SocialPage() {
+    const [settings, setSettings] = useState<IUserSettings | null>(null);
     const [contacts, setContacts] = useState<IContact[]>([]);
     const [ideas, setIdeas] = useState<IContentIdea[]>([]);
     const [platforms, setPlatforms] = useState<ISocialPlatform[]>([]);
@@ -41,6 +42,7 @@ export default function SocialPage() {
     }, []);
 
     useEffect(() => { load(); }, [load]);
+    useEffect(() => { settingsApi.get().then(setSettings).catch(() => setSettings(null)); }, []);
 
     // ── Contact handlers ──────────────────────────────────────────────────────
     const [cForm, setCForm] = useState({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
@@ -101,6 +103,18 @@ export default function SocialPage() {
     // ── Filtered contacts ─────────────────────────────────────────────────────
     const filtered = contacts.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
     const overdue = contacts.filter(c => daysSince(c.lastTalked) > (c.followUpDays || 14));
+    const openWhatsApp = (contact: IContact) => {
+        const raw = (contact.phone || settings?.integrations?.whatsappNumber || '').replace(/[^\d]/g, '');
+        if (!raw) return;
+        const msg = encodeURIComponent(`Hi ${contact.name}, just checking in from my Personal Assistant app.`);
+        window.open(`https://wa.me/${raw}?text=${msg}`, '_blank', 'noopener,noreferrer');
+    };
+    const openTelegram = (contact: IContact) => {
+        const username = (settings?.integrations?.telegramUsername || '').replace('@', '');
+        if (!username) return;
+        const msg = encodeURIComponent(`Hi ${contact.name}, just checking in from my Personal Assistant app.`);
+        window.open(`https://t.me/${username}?text=${msg}`, '_blank', 'noopener,noreferrer');
+    };
 
     const TABS = [
         { id: 'contacts' as const, label: '👥 Contacts', count: contacts.length },
@@ -153,6 +167,13 @@ export default function SocialPage() {
                             </button>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {(settings?.integrations?.whatsappEnabled || settings?.integrations?.telegramEnabled) && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-4">
+                    <p className="text-sm font-semibold text-gray-800">Messaging quick actions enabled</p>
+                    <p className="text-xs text-gray-500 mt-1">Use WhatsApp/Telegram buttons in contacts to follow up faster.</p>
                 </div>
             )}
 
@@ -225,6 +246,22 @@ export default function SocialPage() {
                                         {c.notes && <p className="text-xs text-gray-500 truncate">💬 {c.notes}</p>}
                                     </div>
                                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${REL_BADGE[c.relationship] || 'bg-gray-100 text-gray-600'}`}>{c.relationship}</span>
+                                    {settings?.integrations?.whatsappEnabled && (
+                                        <button
+                                            onClick={() => openWhatsApp(c)}
+                                            className="opacity-0 group-hover:opacity-100 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all"
+                                        >
+                                            WhatsApp
+                                        </button>
+                                    )}
+                                    {settings?.integrations?.telegramEnabled && (
+                                        <button
+                                            onClick={() => openTelegram(c)}
+                                            className="opacity-0 group-hover:opacity-100 text-xs text-sky-700 bg-sky-50 px-2 py-1 rounded-lg hover:bg-sky-100 transition-all"
+                                        >
+                                            Telegram
+                                        </button>
+                                    )}
                                     <button onClick={() => touchContact(c._id)} className="opacity-0 group-hover:opacity-100 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all">✓ Talked</button>
                                     <button onClick={() => deleteContact(c._id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all text-xs px-1">✕</button>
                                 </div>

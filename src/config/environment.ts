@@ -91,15 +91,15 @@ const getDefaultApiUrl = (env: string): string => {
 const getDefaultAppTitle = (env: string): string => {
   switch (env) {
     case "local":
-      return "AMS Portal (Local)";
+      return "Personal Portal (Local)";
     case "development":
-      return "AMS Portal (Development)";
+      return "Personal Portal (Development)";
     case "staging":
-      return "AMS Portal (Staging)";
+      return "Personal Portal (Staging)";
     case "production":
-      return "AMS Portal";
+      return "Personal Portal";
     default:
-      return "AMS Portal (Local)";
+      return "Personal Portal (Local)";
   }
 };
 

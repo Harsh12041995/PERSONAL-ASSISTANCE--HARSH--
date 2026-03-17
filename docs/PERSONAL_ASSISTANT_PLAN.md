@@ -1,5 +1,5 @@
 # 🧠 HARSH's Personal Assistant — Transformation Plan
-> Converting the Sorigin AMS SaaS frontend into a **single-source personal life operating system**
+> Converting the Personal Portal frontend into a **single-source personal life operating system**
 
 ---
 
@@ -60,6 +60,15 @@ The existing ticket system becomes your **universal capture tool** — a place t
 - 📓 **Journal Entry** — free-form thoughts
 
 **New Backend model: `backend/models/Capture.js`**
+
+#### 🎙️ Voice Capture Upgrade (Implemented)
+- Live speech transcription with interim + final text handling
+- Start / Pause / Resume / Stop workflow for better control
+- Mic level indicator + recording duration + word count
+- Draft transcript auto-recovery (localStorage) on accidental close/reload
+- Raw transcript auto-saved first, then optional AI refinement
+- Multi-language support baseline: `en-US`, `en-IN`, `hi-IN`
+- Manual fallback actions: copy text, clear draft, close safely
 
 ---
 
@@ -204,7 +213,7 @@ Replace the current enterprise sidebar with a personal assistant sidebar:
 ## 🛠️ Implementation Phases
 
 ### Phase 1: Foundation (Week 1)
-1. **Rebrand the app** — rename from "Sorigin AMS" to "Harsh's Command Center"
+1. **Rebrand the app** — rename from "Personal Portal" to "Harsh's Command Center"
 2. **Redesign the sidebar** — replace enterprise nav with personal modules
 3. **Redesign Home dashboard** — "Good Morning, Harsh" view
 4. **Clean up auth** — simplify to single-user, remove enterprise auth complexity

@@ -17,6 +17,11 @@ const Contact = require('../models/Contact');
 const ContentIdea = require('../models/ContentIdea');
 const SocialPlatform = require('../models/SocialPlatform');
 const UserSettings = require('../models/UserSettings');
+const CalendarEvent = require('../models/CalendarEvent');
+const WorkflowQueueItem = require('../models/WorkflowQueueItem');
+const WorkflowDMActivity = require('../models/WorkflowDMActivity');
+const aiService = require('../utils/aiService');
+const automationService = require('../services/automationService');
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
@@ -34,8 +39,27 @@ exports.getCaptures = async (req, res) => {
 
 exports.createCapture = async (req, res) => {
     try {
-        const { type, text, emoji } = req.body;
-        const capture = await Capture.create({ userId: req.user._id, type, text, emoji });
+        const { type, text, emoji, rawText, isRefined } = req.body;
+        const capture = await Capture.create({
+            userId: req.user._id,
+            type,
+            text,
+            emoji,
+            rawText: rawText || text,
+            isRefined: isRefined || false
+        });
+        ok(res, capture);
+    } catch (e) { fail(res, e); }
+};
+
+exports.updateCapture = async (req, res) => {
+    try {
+        const capture = await Capture.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user._id },
+            req.body,
+            { new: true }
+        );
+        if (!capture) return fail(res, 'Capture not found', 404);
         ok(res, capture);
     } catch (e) { fail(res, e); }
 };
@@ -80,6 +104,16 @@ exports.deleteTask = async (req, res) => {
     try {
         await Task.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
         ok(res, { deleted: req.params.id });
+    } catch (e) { fail(res, e); }
+};
+
+exports.analyzeTasks = async (req, res) => {
+    try {
+        const tasks = await Task.find({ userId: req.user._id, done: false });
+        if (tasks.length === 0) return ok(res, "No active tasks to analyze.");
+
+        const analysis = await aiService.analyzeTasks(tasks);
+        ok(res, analysis);
     } catch (e) { fail(res, e); }
 };
 
@@ -141,6 +175,16 @@ exports.deleteNote = async (req, res) => {
     try {
         await Knowledge.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
         ok(res, { deleted: req.params.id });
+    } catch (e) { fail(res, e); }
+};
+
+exports.summarizeNote = async (req, res) => {
+    try {
+        const note = await Knowledge.findOne({ _id: req.params.id, userId: req.user._id });
+        if (!note) return fail(res, 'Note not found', 404);
+
+        const summary = await aiService.summarize(note.content);
+        ok(res, summary);
     } catch (e) { fail(res, e); }
 };
 
@@ -228,6 +272,36 @@ exports.getDashboardStats = async (req, res) => {
             goalsTotal: goalsAll.length,
             habitStreak: healthToday?.habits ? Object.values(healthToday.habits).filter(Boolean).length : 0,
         });
+    } catch (e) { fail(res, e); }
+};
+
+exports.getAiDashboardInsights = async (req, res) => {
+    try {
+        const uid = req.user._id;
+        const today = new Date().toISOString().slice(0, 10);
+
+        const [stats, tasks] = await Promise.all([
+            Task.aggregate([
+                { $match: { userId: uid } },
+                { $group: { _id: '$done', count: { $sum: 1 } } }
+            ]),
+            Task.find({ userId: uid, done: false }).limit(5)
+        ]);
+
+        const prompt = `Based on these stats, give me 3 super-short proactive "Smart Insights" or encouragements for my dashboard. One for productivity, one for mindset, and one general tip. Keep each insight under 12 words.\n\nStats: ${JSON.stringify(stats)}\nNext tasks: ${tasks.map(t => t.title).join(', ')}`;
+
+        const insights = await aiService.generateText(prompt, "You are a proactive life coach. Be inspiring and extremely concise.");
+        ok(res, insights.split('\n').filter(line => line.trim().length > 0));
+    } catch (e) { fail(res, e); }
+};
+
+exports.refineTranscript = async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text) return fail(res, 'No text provided', 400);
+
+        const refined = await aiService.refineTranscript(text);
+        ok(res, refined);
     } catch (e) { fail(res, e); }
 };
 // ─── Export all data ──────────────────────────────────────────────────────────
@@ -346,6 +420,65 @@ exports.createSkill = async (req, res) => { try { ok(res, await Skill.create({ .
 exports.updateSkill = async (req, res) => { try { ok(res, await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
 exports.deleteSkill = async (req, res) => { try { await Skill.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
+exports.processCv = async (req, res) => {
+    try {
+        const { cvText } = req.body;
+        console.log("[ProcessCv] Received CV text, length:", cvText?.length);
+        if (!cvText) return fail(res, 'No CV text provided', 400);
+
+        console.log("[ProcessCv] Calling AI parse...");
+        const structuredData = await aiService.parseCv(cvText);
+        console.log("[ProcessCv] AI response received.");
+        const { profile, skills } = structuredData;
+
+        // 1. Update Profile
+        const updatedProfile = await CareerProfile.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+                ...profile,
+                userId: req.user._id,
+                summary: profile.summary || ''
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        // 2. Clear old skills and insert new ones
+        await Skill.deleteMany({ userId: req.user._id });
+        const skillDocs = skills.map(s => ({
+            userId: req.user._id,
+            name: s.name,
+            level: s.level || 70,
+            category: s.category || 'Technical',
+            emoji: s.emoji || '⚡'
+        }));
+        await Skill.insertMany(skillDocs);
+
+        ok(res, {
+            profile: updatedProfile,
+            skillsCount: skillDocs.length,
+            message: "CV successfully parsed and profile updated."
+        });
+    } catch (e) {
+        console.error("[ProcessCv] Error:", e);
+        fail(res, e);
+    }
+};
+
+exports.matchJob = async (req, res) => {
+    try {
+        const { jobDescription } = req.body;
+        if (!jobDescription) return fail(res, 'No job description provided', 400);
+
+        const skills = await Skill.find({ userId: req.user._id });
+        const analysis = await aiService.compareJob(jobDescription, skills);
+
+        ok(res, analysis);
+    } catch (e) {
+        console.error("[MatchJob] Error:", e);
+        fail(res, e);
+    }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SOCIAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -373,6 +506,104 @@ exports.upsertSocialPlatform = async (req, res) => {
 exports.deleteSocialPlatform = async (req, res) => { try { await SocialPlatform.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  CALENDAR
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.getCalendarEvents = async (req, res) => {
+    try { ok(res, await CalendarEvent.find({ userId: req.user._id }).sort({ start: 1, createdAt: -1 })); } catch (e) { fail(res, e); }
+};
+exports.createCalendarEvent = async (req, res) => {
+    try { ok(res, await CalendarEvent.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.updateCalendarEvent = async (req, res) => {
+    try { ok(res, await CalendarEvent.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+};
+exports.deleteCalendarEvent = async (req, res) => {
+    try { await CalendarEvent.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  WORKFLOW MANAGER
+// ═══════════════════════════════════════════════════════════════════════════════
+const workflowDefaultConfig = {
+    connections: { instagram: false, googleDrive: false, captionEngine: false },
+    ioPoints: {
+        driveInputFolderId: '',
+        dmInputMode: 'webhook',
+        instagramOutputAccountId: '',
+        archiveOutputFolderId: '',
+        alertOutputChannel: 'in-app',
+    },
+    dmRules: {
+        leadKeywords: 'collab, partnership, pricing, sponsor',
+        urgentKeywords: 'refund, issue, problem, urgent',
+        autoAcknowledge: true,
+        slaMinutes: 30,
+    },
+    browserWorkspace: {
+        homeUrl: 'https://chatgpt.com',
+        allowedDomains: 'chatgpt.com,claude.ai,gemini.google.com',
+        allowAnyUrl: true,
+        sessionTracking: true,
+        recordingEnabled: true,
+        integrationWebhookUrl: '',
+        integrationAuthToken: '',
+        emitVisitEvents: true,
+        emitRecordingEvents: true,
+        socialMode: true,
+    },
+};
+
+exports.getWorkflowConfig = async (req, res) => {
+    try {
+        const s = await UserSettings.findOne({ userId: req.user._id });
+        ok(res, s?.workflowManager || workflowDefaultConfig);
+    } catch (e) { fail(res, e); }
+};
+
+exports.saveWorkflowConfig = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        const settings = await UserSettings.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+                userId: req.user._id,
+                workflowManager: {
+                    connections: { ...workflowDefaultConfig.connections, ...(payload.connections || {}) },
+                    ioPoints: { ...workflowDefaultConfig.ioPoints, ...(payload.ioPoints || {}) },
+                    dmRules: { ...workflowDefaultConfig.dmRules, ...(payload.dmRules || {}) },
+                    browserWorkspace: { ...workflowDefaultConfig.browserWorkspace, ...(payload.browserWorkspace || {}) },
+                },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        ok(res, settings.workflowManager);
+    } catch (e) { fail(res, e); }
+};
+
+exports.getWorkflowQueue = async (req, res) => {
+    try { ok(res, await WorkflowQueueItem.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); }
+};
+exports.createWorkflowQueueItem = async (req, res) => {
+    try { ok(res, await WorkflowQueueItem.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.updateWorkflowQueueItem = async (req, res) => {
+    try { ok(res, await WorkflowQueueItem.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+};
+exports.deleteWorkflowQueueItem = async (req, res) => {
+    try { await WorkflowQueueItem.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
+};
+
+exports.getWorkflowDMActivity = async (req, res) => {
+    try { ok(res, await WorkflowDMActivity.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); }
+};
+exports.createWorkflowDMActivity = async (req, res) => {
+    try { ok(res, await WorkflowDMActivity.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
+};
+exports.updateWorkflowDMActivity = async (req, res) => {
+    try { ok(res, await WorkflowDMActivity.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.getSettings = async (req, res) => {
@@ -389,5 +620,15 @@ exports.saveSettings = async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         ok(res, s);
+    } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  AUTOMATION
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.runAutomation = async (req, res) => {
+    try {
+        const result = await automationService.executeAll(req.user._id);
+        ok(res, result);
     } catch (e) { fail(res, e); }
 };

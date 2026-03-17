@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 interface ButtonProps {
   children: ReactNode;
   size?: "sm" | "md";
-  variant?: "primary" |"simple2"| "outline" | "outempty"|"danger" | "success" | "ghost" | "accent" | "darkGreen" | "sorigin" |"soriginh"|"soriginv" | "soriginv2";
+  variant?: "primary" |"simple2"| "outline" | "outempty"|"danger" | "success" | "ghost" | "accent" | "darkGreen" | "portal" |"portalh"|"portalv" | "portalv2";
   startIcon?: ReactNode;
   endIcon?: ReactNode;
   onClick?: () => void;
@@ -46,7 +46,7 @@ MSB:"w-full bg-gradient-to-b from-[#5b8c24] to-[#264f3c] text-white font-semibol
          shadow-sm hover:bg-gray-100 hover:text-gray-900 
          transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 
          focus:ring-offset-1 focus:ring-gray-300`
-  , soriginh: `
+  , portalh: `
   bg-gradient-to-r from-[#264f3c] to-[#5b8c24]
   text-white font-semibold shadow-sm
   transition-all duration-300 ease-in-out
@@ -59,7 +59,7 @@ MSB:"w-full bg-gradient-to-b from-[#5b8c24] to-[#264f3c] text-white font-semibol
   before:blur-sm
   rounded-xl
 `,
-soriginv: `
+portalv: `
   bg-gradient-to-b from-[#5b8c24] to-[#264f3c]
   text-white font-semibold
   transition-all duration-300 ease-in-out
@@ -72,13 +72,13 @@ soriginv: `
   before:blur-sm
   rounded-xl
 `,
-sorigin:`bg-[#a3cd39] text-white font-semibold px-6 py-2 rounded-xl
+portal:`bg-[#a3cd39] text-white font-semibold px-6 py-2 rounded-xl
          transition-all duration-300 ease-in-out shadow-md
          relative overflow-hidden
          before:absolute before:inset-0 before:bg-white/10
          before:translate-y-[-100%] hover:before:translate-y-[100%]
          before:transition-transform before:duration-700 before:blur-sm`,
-soriginv3: `
+portalv3: `
   bg-[linear-gradient(to_bottom,_#5b8c24_10%,_#264f3c_90%)]
   text-white font-semibold
   transition-all duration-300 ease-in-out
@@ -92,7 +92,7 @@ soriginv3: `
   rounded-xl
 `,
 
- soriginv2 : `
+ portalv2 : `
   bg-gradient-to-b from-[#264f3c] to-[#1a2e2b]
   text-white font-semibold
   transition-all duration-300 ease-in-out

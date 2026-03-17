@@ -51,15 +51,17 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
+      const wasMobile = isMobile;
       setIsMobile(mobile);
-      
-      // Close mobile sidebar when switching to desktop
+
+      // Close mobile drawer when moving from mobile -> desktop
       if (!mobile && isMobileOpen) {
         setIsMobileOpen(false);
       }
-      
-      // Auto-expand sidebar on desktop
-      if (!mobile && !isExpanded) {
+
+      // Only force expand once when crossing from mobile to desktop.
+      // Don't auto-expand on every render, otherwise hamburger toggle breaks.
+      if (wasMobile && !mobile) {
         setIsExpanded(true);
       }
     };
@@ -74,7 +76,7 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [isMobileOpen, isExpanded]);
+  }, [isMobileOpen, isMobile]);
 
   /**
    * Toggle sidebar expansion (desktop)

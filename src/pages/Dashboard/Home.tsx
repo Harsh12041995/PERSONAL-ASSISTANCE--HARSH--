@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { statsApi, IDashboardStats, captureApi, ICapture } from '../../services/personalApi';
+import { aiIntelligence } from '../../services/aiIntelligence';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ const MODULE_SHORTCUTS = [
   { name: 'Knowledge', emoji: '🧠', path: '/knowledge', desc: 'Save a note', color: 'from-indigo-400 to-purple-400' },
   { name: 'Health', emoji: '💪', path: '/health', desc: 'Log today\'s habits', color: 'from-rose-400 to-pink-400' },
   { name: 'Career', emoji: '💼', path: '/career', desc: 'Career updates', color: 'from-orange-400 to-amber-400' },
+  { name: 'Blogs', emoji: '🌍', path: '/blogs', desc: 'Stay aware globally', color: 'from-cyan-500 to-blue-500' },
+  { name: 'Workflow', emoji: '⚙️', path: '/workflow-manager', desc: 'Run social workflow', color: 'from-emerald-500 to-teal-500' },
   { name: 'AI Chat', emoji: '🤖', path: '/ai-chat', desc: 'Ask your assistant', color: 'from-cyan-400 to-sky-400' },
 ];
 
@@ -77,12 +80,14 @@ const UPCOMING_EVENTS = [
 
 export default function Home() {
   const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0] || 'Harsh';
+  const firstName = user?.first_name || user?.name?.split(' ')[0] || 'User';
   const [time, setTime] = useState(formatTime());
   const [stats, setStats] = useState<IDashboardStats | null>(null);
   const [recentCaptures, setRecentCaptures] = useState<ICapture[]>([]);
   const [captureText, setCaptureText] = useState('');
   const [captureSubmitted, setCaptureSubmitted] = useState(false);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [loadingInsights, setLoadingInsights] = useState(true);
 
   // Live clock
   useEffect(() => {
@@ -96,6 +101,14 @@ export default function Home() {
       const [s, caps] = await Promise.all([statsApi.get(), captureApi.getAll()]);
       setStats(s);
       setRecentCaptures(caps.slice(0, 5));
+
+      // Load AI insights separately so they don't block basic stats
+      setLoadingInsights(true);
+      aiIntelligence.getDashboardInsights()
+        .then(res => setInsights(res))
+        .catch(() => setInsights([]))
+        .finally(() => setLoadingInsights(false));
+
     } catch { /* silently fallback */ }
   }, []);
   useEffect(() => { loadData(); }, [loadData]);
@@ -167,6 +180,33 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ── Smart Insights (AI) ───────────────────────────────────────────── */}
+      <div className="bg-gradient-to-br from-indigo-50/50 to-violet-50/50 rounded-2xl border border-violet-100 p-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+          <svg className="w-24 h-24 text-violet-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.85 8.65L22 9.25L16.5 13.92L18.18 21L12 17.27L5.82 21L7.5 13.92L2 9.25L9.15 8.65L12 2Z" /></svg>
+        </div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-600 text-[10px] text-white font-bold italic">AI</span>
+          <h2 className="text-xs font-bold text-violet-800 uppercase tracking-widest">Smart Insights</h2>
+          {loadingInsights && <div className="animate-spin h-3 w-3 border-b-2 border-violet-600 rounded-full" />}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {insights.length > 0 ? insights.slice(0, 3).map((insight, i) => (
+            <div key={i} className="flex gap-3 bg-white/60 hover:bg-white/90 p-3 rounded-xl border border-violet-100/50 transition-all cursor-default">
+              <span className="text-lg flex-shrink-0">{['🚀', '💡', '🌟'][i] || '✨'}</span>
+              <p className="text-xs text-indigo-900/80 leading-relaxed font-medium">
+                {insight.replace(/^[0-9.]\s*/, '')}
+              </p>
+            </div>
+          )) : !loadingInsights && (
+            <div className="md:col-span-3 text-center py-2 text-xs text-indigo-400 font-medium">
+              Keep progressing to unlock more insights! ✨
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ── Quick Capture Bar ──────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
         <form onSubmit={handleQuickCapture} className="flex items-center gap-3">
@@ -178,15 +218,17 @@ export default function Home() {
             placeholder="Capture a thought, idea, task, or anything on your mind..."
             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition-all"
           />
-          <button
-            type="submit"
-            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-shrink-0 ${captureSubmitted
-              ? 'bg-emerald-500 text-white'
-              : 'bg-violet-600 hover:bg-violet-700 text-white'
-              }`}
-          >
-            {captureSubmitted ? '✓ Saved!' : 'Capture'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-shrink-0 ${captureSubmitted
+                ? 'bg-emerald-500 text-white'
+                : 'bg-violet-600 hover:bg-violet-700 text-white'
+                }`}
+            >
+              {captureSubmitted ? '✓ Saved!' : 'Capture'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -218,7 +260,7 @@ export default function Home() {
               <span className="text-lg">📅</span>
               <h2 className="text-sm font-bold text-gray-800">Today's Schedule</h2>
             </div>
-            <Link to="/my-calendar" className="text-xs text-violet-600 hover:text-violet-700 font-medium">View all →</Link>
+            <Link to="/calendar" className="text-xs text-violet-600 hover:text-violet-700 font-medium">View all →</Link>
           </div>
           <div className="p-4 space-y-3">
             {UPCOMING_EVENTS.map((evt, i) => (

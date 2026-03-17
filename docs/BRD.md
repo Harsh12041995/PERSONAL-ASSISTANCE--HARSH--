@@ -1,8 +1,8 @@
 # 📋 Business Requirements Document (BRD)
 ## Harsh's Personal Command Center
 
-> **Version:** 3.0 — Phase 3 Complete
-> **Date:** 22 February 2026
+> **Version:** 3.1 — Voice Capture Upgrade
+> **Date:** 26 February 2026
 > **Author:** Harsh Sahu | **Status:** 🟢 Active Development
 
 ---
@@ -11,7 +11,7 @@
 
 **Harsh's Personal Command Center** is a private, self-hosted, single-user life operating system built on React + Vite (frontend) and Node.js + Express + MongoDB (backend). It unifies tasks, finances, health, knowledge, goals, career tracking, and social relationships into a single premium dashboard — eliminating the need to context-switch between 5+ apps daily.
 
-**Transformation Path:** Rebrand from Sorigin AMS (enterprise SaaS) → Personal Life OS across 3 phases:
+**Transformation Path:** Rebrand from Personal Portal (enterprise SaaS) → Personal Life OS across 3 phases:
 - **Phase 1** — Rebrand, sidebar redesign, Home dashboard
 - **Phase 2** — Real data persistence (MongoDB) for 6 core modules
 - **Phase 3** — Settings, Career Hub, Social Life Tracker, Finance chart, Data Export ✅
@@ -55,6 +55,7 @@
 - Social Life Tracker (contacts CRM, content ideas, platform stats — localStorage)
 - Settings (profile, theme, notifications, API key, data export)
 - AI Chat (UI ready, API key wired)
+- AI Voice Capture (pause/resume, mic meter, transcript draft recovery, AI refine)
 - JWT Auth (sign in / sign up / reset password)
 - Backend data export (`GET /api/v1/personal/export`)
 
@@ -91,6 +92,13 @@
 | FR-11 | Delete individual captures |
 | FR-12 | Filter by type |
 | FR-13 | MongoDB persistence scoped to userId |
+| FR-66 | Voice Capture modal supports start/pause/resume/stop flows |
+| FR-67 | Live transcript with interim + final speech segments |
+| FR-68 | Audio input meter with elapsed duration + word count |
+| FR-69 | Transcript auto-draft recovery from localStorage on reopen |
+| FR-70 | Raw transcript auto-saved to Capture before AI refine |
+| FR-71 | One-click AI refine updates saved capture while preserving raw text |
+| FR-72 | Language selector for speech recognition (US/IN English + Hindi) |
 
 ### 5.3 Task Manager
 | ID | Requirement |
@@ -190,6 +198,7 @@
 | **Performance** | Page load < 2s; API response < 300ms on local |
 | **Security** | JWT on all personal APIs; bcrypt passwords; userId-scoped DB queries |
 | **Reliability** | Graceful error handling on all API calls; React error boundaries |
+| **Browser Compatibility** | Voice capture gracefully degrades when Web Speech API is unavailable |
 | **Maintainability** | TypeScript strict; component-based; unified API service layer |
 | **Scalability** | Single-user design; optimised for one userId |
 

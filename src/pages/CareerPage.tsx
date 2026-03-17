@@ -15,7 +15,7 @@ export default function CareerPage() {
     const [certs, setCerts] = useState<ICert[]>([]);
     const [skills, setSkills] = useState<ISkill[]>([]);
     const [profile, setProfile] = useState<ICareerProfile>({ currentRole: '', experienceYrs: 0, linkedInUrl: '', naukriUrl: '', portfolioUrl: '', summary: '' });
-    const [tab, setTab] = useState<'jobs' | 'certs' | 'skills' | 'profile'>('jobs');
+    const [tab, setTab] = useState<'jobs' | 'certs' | 'skills' | 'profile' | 'matcher'>('jobs');
     const [loading, setLoading] = useState(true);
 
     // ── Load all data on mount ────────────────────────────────────────────────
@@ -89,8 +89,54 @@ export default function CareerPage() {
     // ── Profile save ──────────────────────────────────────────────────────────
     const [profSaved, setProfSaved] = useState(false);
     const saveProfile = async () => {
-        await careerApi.saveProfile(profile);
-        setProfSaved(true); setTimeout(() => setProfSaved(false), 2000);
+        try {
+            await careerApi.saveProfile(profile);
+            setProfSaved(true); setTimeout(() => setProfSaved(false), 2000);
+        } catch (e) {
+            console.error(e);
+            alert("Failed to save profile.");
+        }
+    };
+
+    // ── CV Sync ───────────────────────────────────────────────────────────────
+    const [cvSyncOpen, setCvSyncOpen] = useState(false);
+    const [cvText, setCvText] = useState('');
+    const [syncing, setSyncing] = useState(false);
+
+    const syncCv = async () => {
+        if (!cvText.trim()) return;
+        setSyncing(true);
+        try {
+            await careerApi.processCv(cvText);
+            setCvSyncOpen(false);
+            setCvText('');
+            load();
+            alert("Profile & Skills synced from CV!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to sync CV. Ensure Ollama is running.");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    // ── AI Matcher ────────────────────────────────────────────────────────────
+    const [jdText, setJdText] = useState('');
+    const [matching, setMatching] = useState(false);
+    const [matchResult, setMatchResult] = useState<any>(null);
+
+    const runMatch = async () => {
+        if (!jdText.trim()) return;
+        setMatching(true);
+        try {
+            const res = await careerApi.matchJob(jdText);
+            setMatchResult(res);
+        } catch (e) {
+            console.error(e);
+            alert("AI Match failed. Check Ollama.");
+        } finally {
+            setMatching(false);
+        }
     };
 
     const TABS = [
@@ -98,6 +144,7 @@ export default function CareerPage() {
         { id: 'certs' as const, label: '🏆 Certs', count: certs.length },
         { id: 'skills' as const, label: '⚡ Skills', count: skills.length },
         { id: 'profile' as const, label: '👤 Profile', count: null },
+        { id: 'matcher' as const, label: '✨ AI Matcher', count: null },
     ];
 
     const stats = [
@@ -296,11 +343,37 @@ export default function CareerPage() {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                     <div className="flex justify-between items-center mb-2">
                         <h2 className="text-sm font-bold text-gray-800">Professional Profile</h2>
-                        <button onClick={saveProfile}
-                            className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${profSaved ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
-                            {profSaved ? '✓ Saved!' : 'Save Profile'}
-                        </button>
+                        <div className="flex gap-2">
+                            <button onClick={() => setCvSyncOpen(p => !p)}
+                                className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-violet-50 text-violet-700 hover:bg-violet-100 transition-all">
+                                {cvSyncOpen ? '✕ Close Sync' : '✨ AI Sync from CV'}
+                            </button>
+                            <button onClick={saveProfile}
+                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${profSaved ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
+                                {profSaved ? '✓ Saved!' : 'Save Profile'}
+                            </button>
+                        </div>
                     </div>
+
+                    {cvSyncOpen && (
+                        <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-3">
+                            <h3 className="text-xs font-bold text-violet-800">Paste your CV Text</h3>
+                            <textarea
+                                value={cvText}
+                                onChange={e => setCvText(e.target.value)}
+                                placeholder="Paste your CV content here (PDF text, Word text, etc.)"
+                                className="w-full h-32 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none"
+                            />
+                            <button
+                                onClick={syncCv}
+                                disabled={syncing || !cvText.trim()}
+                                className="w-full py-2.5 bg-violet-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-violet-200 hover:bg-violet-700 disabled:opacity-50 transition-all"
+                            >
+                                {syncing ? '🤖 AI is processing...' : 'Process and Update My Profile'}
+                            </button>
+                            <p className="text-[10px] text-gray-500 italic text-center">This will use your local AI (Ollama) to update your profile and skill matrix automatically.</p>
+                        </div>
+                    )}
                     {([
                         { label: 'Current Role / Title', key: 'currentRole', ph: 'e.g. Full Stack Developer' },
                         { label: 'Years of Experience', key: 'experienceYrs', ph: '2.5', type: 'number' },
@@ -337,6 +410,105 @@ export default function CareerPage() {
                             </a>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* ── AI MATCHER ── */}
+            {tab === 'matcher' && (
+                <div className="space-y-4">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-sm font-bold text-gray-800">Job Compatibility Analyzer</h2>
+                            <span className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Experimental</span>
+                        </div>
+                        <p className="text-xs text-gray-500">Paste a Job Description from LinkedIn or Naukri to see how well you match based on your current skill matrix.</p>
+
+                        <textarea
+                            value={jdText}
+                            onChange={e => setJdText(e.target.value)}
+                            placeholder="Paste the full job description here..."
+                            rows={6}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none font-mono"
+                        />
+
+                        <button
+                            onClick={runMatch}
+                            disabled={matching || !jdText.trim()}
+                            className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-violet-200 hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                        >
+                            {matching ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    AI is analyzing compatibility...
+                                </>
+                            ) : (
+                                <>✨ Analyze My Match</>
+                            )}
+                        </button>
+                    </div>
+
+                    {matchResult && (
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="p-6 text-center bg-gradient-to-b from-violet-50/50 to-white border-b border-gray-50">
+                                <div className="inline-flex items-center justify-center p-4 bg-white rounded-full shadow-xl border border-violet-100 mb-2">
+                                    <div className="relative">
+                                        <svg className="w-20 h-20 transform -rotate-90">
+                                            <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-100" />
+                                            <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-violet-600"
+                                                strokeDasharray={226} strokeDashoffset={226 - (226 * matchResult.matchScore) / 100} strokeLinecap="round" />
+                                        </svg>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <span className="text-xl font-bold text-gray-800">{matchResult.matchScore}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-800">Compatibility Score</h3>
+                                <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">{matchResult.summary}</p>
+                            </div>
+
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 uppercase tracking-wider">
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> Your Strengths
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {matchResult.strengths.map((s: string, i: number) => (
+                                            <div key={i} className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2 text-sm text-emerald-800 font-medium">
+                                                ✅ {s}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold text-amber-600 flex items-center gap-1.5 uppercase tracking-wider">
+                                        <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" /> Critical Gaps
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {matchResult.gaps.map((g: string, i: number) => (
+                                            <div key={i} className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2 text-sm text-amber-800 font-medium">
+                                                ⚠️ {g}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-5 bg-gray-50 border-t border-gray-100">
+                                <h4 className="text-xs font-bold text-violet-700 mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                                    🚀 Recommended Roadmap
+                                </h4>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {matchResult.recommendations.map((r: string, i: number) => (
+                                        <div key={i} className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm flex gap-3 items-center group hover:border-violet-300 transition-colors">
+                                            <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">0{i + 1}</span>
+                                            <p className="text-gray-700">{r}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

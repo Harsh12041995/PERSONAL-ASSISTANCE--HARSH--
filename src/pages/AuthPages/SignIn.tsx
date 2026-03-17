@@ -6,7 +6,7 @@ export default function SignIn() {
   return (
     <>
       <PageMeta
-        title="Harsh's Space — Sign In"
+        title="Personal Space — Sign In"
         description="Your personal command center. Tasks, habits, finance, goals — all in one place."
       />
       <SignInFormNew />

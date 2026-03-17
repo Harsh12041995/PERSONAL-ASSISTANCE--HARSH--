@@ -14,6 +14,8 @@ import AppLayout from "./layout/AppLayout";
 // ── Auth pages ───────────────────────────────────────────────────────────────
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
+import AdminSignIn from "./pages/AuthPages/AdminSignIn";
+import PortalSignUp from "./pages/AuthPages/PortalSignUp";
 import AuthRedirect from "./components/AuthRedirect";
 import ResetPasswordPage from "./components/auth/ResetPasswordPage";
 import SetPasswordPage from "./components/auth/SetPasswordPage";
@@ -32,6 +34,11 @@ import SocialPage from "./pages/SocialPage";
 import AiChatPage from "./pages/AiChatPage";
 import Calendar from "./pages/Calendar";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
+import BlogsPage from "./pages/BlogsPage";
+import WorkflowManagerPage from "./pages/WorkflowManagerPage";
+import UserManagement from "./pages/Admin/UserManagement";
+import PermissionMatrix from "./pages/Admin/PermissionMatrix";
 import NotFound from "./pages/OtherPage/NotFound";
 
 // ── Scroll to top on route change ────────────────────────────────────────────
@@ -54,6 +61,8 @@ export default function App() {
         {/* ── Public auth routes ─────────────────────────────────────── */}
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/admin/login" element={<AdminSignIn />} />
+        <Route path="/portal/signup" element={<PortalSignUp />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
         <Route path="/auth-redirect" element={<AuthRedirect />} />
@@ -62,17 +71,22 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<ProtectedRoute><Home /></ProtectedRoute>} />
 
-          <Route path="/capture" element={<ProtectedRoute><CapturePage /></ProtectedRoute>} />
-          <Route path="/personal-tasks" element={<ProtectedRoute><PersonalTasksPage /></ProtectedRoute>} />
-          <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-          <Route path="/finance" element={<ProtectedRoute><FinancePage /></ProtectedRoute>} />
-          <Route path="/knowledge" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
-          <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
-          <Route path="/health" element={<ProtectedRoute><HealthPage /></ProtectedRoute>} />
-          <Route path="/career" element={<ProtectedRoute><CareerPage /></ProtectedRoute>} />
-          <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
-          <Route path="/ai-chat" element={<ProtectedRoute><AiChatPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/capture" element={<ProtectedRoute requiredPermission="tasks"><CapturePage /></ProtectedRoute>} />
+          <Route path="/personal-tasks" element={<ProtectedRoute requiredPermission="tasks"><PersonalTasksPage /></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute requiredPermission="calendar"><Calendar /></ProtectedRoute>} />
+          <Route path="/finance" element={<ProtectedRoute requiredPermission="finance"><FinancePage /></ProtectedRoute>} />
+          <Route path="/knowledge" element={<ProtectedRoute requiredPermission="tasks"><KnowledgePage /></ProtectedRoute>} />
+          <Route path="/goals" element={<ProtectedRoute requiredPermission="tasks"><GoalsPage /></ProtectedRoute>} />
+          <Route path="/health" element={<ProtectedRoute requiredPermission="tasks"><HealthPage /></ProtectedRoute>} />
+          <Route path="/career" element={<ProtectedRoute requiredPermission="tasks"><CareerPage /></ProtectedRoute>} />
+          <Route path="/social" element={<ProtectedRoute requiredPermission="social"><SocialPage /></ProtectedRoute>} />
+          <Route path="/blogs" element={<ProtectedRoute requiredPermission="blogs"><BlogsPage /></ProtectedRoute>} />
+          <Route path="/workflow-manager" element={<ProtectedRoute requiredPermission="social"><WorkflowManagerPage /></ProtectedRoute>} />
+          <Route path="/ai-chat" element={<ProtectedRoute requiredPermission="ai_chat"><AiChatPage /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><PermissionMatrix /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute requiredPermission="tasks"><SettingsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute requiredPermission="tasks"><ProfilePage /></ProtectedRoute>} />
         </Route>
 
         {/* 404 */}

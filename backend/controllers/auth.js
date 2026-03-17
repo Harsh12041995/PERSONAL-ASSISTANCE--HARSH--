@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Role = require('../models/Role');
 const jwt = require('jsonwebtoken');
 
 // Generate Token
@@ -61,6 +62,29 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
+        // Check if user is approved
+        if (user.status !== 'approved') {
+            return res.status(403).json({
+                success: false,
+                message: user.status === 'pending'
+                    ? 'Your account is pending approval by an admin.'
+                    : 'Your account has been blocked. Please contact support.'
+            });
+        }
+
+        if (user.accountConfig?.loginAccess === false) {
+            return res.status(403).json({
+                success: false,
+                message: 'Account access disabled by admin.'
+            });
+        }
+
+        const roleDoc = await Role.findOne({ name: user?.role?.name });
+        const rolePermissions = Array.isArray(roleDoc?.permissions) ? roleDoc.permissions : [];
+        const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
+        const permissionMode = user.permissionMode || 'role';
+        const effectivePermissions = permissionMode === 'custom' ? userPermissions : rolePermissions;
+
         res.json({
             success: true,
             data: {
@@ -69,11 +93,18 @@ exports.login = async (req, res) => {
                     first_name: user.first_name,
                     last_name: user.last_name,
                     email: user.email,
-                    role: user.role
+                    role: user.role,
+                    status: user.status,
+                    permissionMode,
+                    permissions: effectivePermissions,
+                    accountConfig: user.accountConfig || {}
                 },
                 token: generateToken(user._id),
                 company: user.company,
-                role: user.role,
+                role: {
+                    name: user?.role?.name || 'User',
+                    permissions: effectivePermissions
+                },
                 groups: user.groups
             }
         });

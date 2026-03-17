@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import PersonalSidebar from "../components/PersonalSidebar";
+import GlobalAIHub from "../components/GlobalAIHub";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -22,6 +23,7 @@ const LayoutContent: React.FC = () => {
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6">
           <Outlet />
         </div>
+        <GlobalAIHub />
       </div>
     </div>
   );

@@ -1,13 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { settingsApi } from "../../services/personalApi";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
+  const [settingsImage, setSettingsImage] = useState(() => localStorage.getItem("profileImage") || "");
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    settingsApi
+      .get()
+      .then((s) => {
+        const img = s?.profileImage || "";
+        setSettingsImage(img);
+        localStorage.setItem("profileImage", img);
+      })
+      .catch(() => setSettingsImage(localStorage.getItem("profileImage") || ""));
+
+    const handleProfileImageUpdate = () => {
+      setSettingsImage(localStorage.getItem("profileImage") || "");
+    };
+
+    window.addEventListener("profile-image-updated", handleProfileImageUpdate);
+    window.addEventListener("storage", handleProfileImageUpdate);
+    return () => {
+      window.removeEventListener("profile-image-updated", handleProfileImageUpdate);
+      window.removeEventListener("storage", handleProfileImageUpdate);
+    };
+  }, []);
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -46,6 +70,7 @@ export default function UserDropdown() {
   // Get user profile image or default avatar
   const getUserProfileImage = () => {
     if (user?.profileImage) return user.profileImage;
+    if (settingsImage) return settingsImage;
     return "/images/user/owner.jpg"; // Default avatar
   };
 

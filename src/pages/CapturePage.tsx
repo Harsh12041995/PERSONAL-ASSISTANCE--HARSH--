@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { captureApi, ICapture } from '../services/personalApi';
+import VoiceTranscriber from '../components/VoiceTranscriber';
 
 type CaptureType = ICapture['type'];
 
@@ -22,6 +23,7 @@ export default function CapturePage() {
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showVoice, setShowVoice] = useState(false);
 
     // ── Load from API ────────────────────────────────────────────────────────
     const load = useCallback(async () => {
@@ -38,12 +40,20 @@ export default function CapturePage() {
     useEffect(() => { load(); }, [load]);
 
     // ── Save ─────────────────────────────────────────────────────────────────
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+
         if (!text.trim()) return;
+
         const tc = CAPTURE_TYPES.find(c => c.type === selectedType)!;
         try {
-            const saved = await captureApi.create({ type: selectedType, text, emoji: tc.emoji });
+            const saved = await captureApi.create({
+                type: selectedType,
+                text: text,
+                emoji: tc.emoji,
+                rawText: text,
+                isRefined: false
+            });
             setCaptures(prev => [saved, ...prev]);
             setText('');
             setSubmitted(true);
@@ -102,7 +112,13 @@ export default function CapturePage() {
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 resize-none transition-all"
                         onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(e as any); }} />
                     <div className="flex items-center justify-between mt-3">
-                        <p className="text-xs text-gray-400">Press ⌘+Enter to save quickly</p>
+                        <div className="flex items-center gap-3">
+                            <p className="text-xs text-gray-400">Press ⌘+Enter to save quickly</p>
+                            <button type="button" onClick={() => setShowVoice(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 transition-all">
+                                🎙️ Record Voice Journal
+                            </button>
+                        </div>
                         <button type="submit"
                             className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200
                                 ${submitted ? 'bg-emerald-500 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`}>
@@ -169,6 +185,13 @@ export default function CapturePage() {
             </div>
 
             <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-violet-600 transition-colors">← Back to Home</Link>
+
+            {showVoice && (
+                <VoiceTranscriber
+                    initialType="Journal"
+                    onClose={() => { setShowVoice(false); load(); }}
+                />
+            )}
         </div>
     );
 }
