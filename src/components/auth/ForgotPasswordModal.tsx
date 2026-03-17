@@ -149,7 +149,7 @@ export default function ForgotPasswordModal({
                   </svg>
         <input
           type="email"
-          placeholder="info@sorigin.com"
+          placeholder="info@personalportal.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={loading}
@@ -165,7 +165,7 @@ export default function ForgotPasswordModal({
       >
         <Button
           type="submit"
-          variant="soriginv"
+          variant="portalv"
           className="w-full h-14"
           size="md"
         >

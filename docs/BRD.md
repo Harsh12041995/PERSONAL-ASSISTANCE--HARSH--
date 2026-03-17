@@ -11,7 +11,7 @@
 
 **Harsh's Personal Command Center** is a private, self-hosted, single-user life operating system built on React + Vite (frontend) and Node.js + Express + MongoDB (backend). It unifies tasks, finances, health, knowledge, goals, career tracking, and social relationships into a single premium dashboard — eliminating the need to context-switch between 5+ apps daily.
 
-**Transformation Path:** Rebrand from Sorigin AMS (enterprise SaaS) → Personal Life OS across 3 phases:
+**Transformation Path:** Rebrand from Personal Portal (enterprise SaaS) → Personal Life OS across 3 phases:
 - **Phase 1** — Rebrand, sidebar redesign, Home dashboard
 - **Phase 2** — Real data persistence (MongoDB) for 6 core modules
 - **Phase 3** — Settings, Career Hub, Social Life Tracker, Finance chart, Data Export ✅

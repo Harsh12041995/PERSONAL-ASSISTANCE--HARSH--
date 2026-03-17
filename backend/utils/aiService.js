@@ -1,6 +1,6 @@
 // backend/utils/aiService.js
 const DEFAULT_MODEL = 'qwen3:4b';
-const OLLAMA_URL = 'http://localhost:11434/api/chat';
+const OLLAMA_URL = 'http://127.0.0.1:11434/api/chat';
 
 /**
  * Generic text generation using Ollama
@@ -60,9 +60,73 @@ const refineTranscript = async (text) => {
     return await generateText(prompt, "You are an expert editor specializing in transcribing speech. Make the text polished and professional.");
 };
 
+/**
+ * Specialized: Parse CV text into structured JSON
+ */
+const parseCv = async (text) => {
+    const prompt = `Extract structured information from the following CV text. Return ONLY a valid JSON object with this exact structure:
+{
+  "profile": {
+    "currentRole": "string",
+    "experienceYrs": number,
+    "summary": "string",
+    "linkedInUrl": "string"
+  },
+  "skills": [
+    { "name": "string", "level": number, "category": "Technical" | "Soft" | "Domain" }
+  ]
+}
+
+CV Text:
+${text}`;
+
+    const result = await generateText(prompt, "You are a specialized HR Data Parser. Output ONLY raw JSON. No markdown, no explanation.");
+    try {
+        // Remove markdown code blocks if present
+        const cleanJson = result.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleanJson);
+    } catch (e) {
+        console.error("Failed to parse AI JSON response:", result);
+        throw new Error("AI output was not valid JSON");
+    }
+};
+
+/**
+ * Specialized: Compare a job description against user skills
+ */
+const compareJob = async (jobDescription, userSkills) => {
+    const skillsList = userSkills.map(s => `${s.name} (${s.level}%)`).join(', ');
+    const prompt = `Act as an expert Technical Recruiter. Compare this Job Description against the candidate's skills.
+
+Candidate Skills: ${skillsList}
+
+Job Description:
+${jobDescription}
+
+Return ONLY a valid JSON object with this structure:
+{
+  "matchScore": number, (0-100)
+  "strengths": ["string"], (list of top 3 matching skills)
+  "gaps": ["string"], (list of critical missing skills or keywords)
+  "recommendations": ["string"], (3 specific learning actions to bridge the gap)
+  "summary": "string" (1-2 sentence verdict)
+}`;
+
+    const result = await generateText(prompt, "You are a specialized Career Strategist. Output ONLY raw JSON.");
+    try {
+        const cleanJson = result.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleanJson);
+    } catch (e) {
+        console.error("Failed to parse Job Match JSON:", result);
+        throw new Error("AI output was not valid JSON");
+    }
+};
+
 module.exports = {
     generateText,
     analyzeTasks,
     summarize,
-    refineTranscript
+    refineTranscript,
+    parseCv,
+    compareJob
 };

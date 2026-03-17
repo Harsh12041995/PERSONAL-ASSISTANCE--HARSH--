@@ -66,7 +66,7 @@ const fullUrl = `${base_url}${pathObject.pathname}?token=${token}`;
         <div className="flex flex-col items-center mb-6">
           <motion.img
             src="/images/logo/logo.svg"
-            alt="Sorigin Logo"
+            alt="Personal Portal Logo"
             className="w-40 mb-3 drop-shadow"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -190,7 +190,7 @@ const fullUrl = `${base_url}${pathObject.pathname}?token=${token}`;
           <div className="px-4">
     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
       <Button
-        variant="soriginv"
+        variant="portalv"
         className="w-full"
         size="md"
         disabled={isLoading}

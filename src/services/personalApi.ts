@@ -8,7 +8,10 @@ const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1';
 // ─── Auth token helper ────────────────────────────────────────────────────────
 const token = () => localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
 
-const api = axios.create({ baseURL: `${BASE}/personal` });
+const api = axios.create({
+    baseURL: `${BASE}/personal`,
+    timeout: 60000 // 60s for AI processing 
+});
 
 api.interceptors.request.use(cfg => {
     const t = token();
@@ -158,6 +161,8 @@ export const careerApi = {
     createSkill: (d: Omit<ISkill, '_id'>) => api.post('/career/skills', d).then(data),
     updateSkill: (id: string, d: Partial<ISkill>) => api.put(`/career/skills/${id}`, d).then(data),
     deleteSkill: (id: string) => api.delete(`/career/skills/${id}`).then(data),
+    processCv: (cvText: string) => api.post('/career/process-cv', { cvText }).then(data),
+    matchJob: (jobDescription: string) => api.post('/career/match-job', { jobDescription }).then(data),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -314,6 +319,11 @@ export const workflowApi = {
     createDMActivity: (d: Omit<IWorkflowDMActivity, '_id'>) => api.post('/workflow/dm', d).then(data) as Promise<IWorkflowDMActivity>,
     updateDMActivity: (id: string, d: Partial<IWorkflowDMActivity>) => api.put(`/workflow/dm/${id}`, d).then(data) as Promise<IWorkflowDMActivity>,
 };
+
+export const automationApi = {
+    run: () => api.post('/automation/run').then(data),
+};
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  DASHBOARD STATS

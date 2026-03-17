@@ -21,6 +21,7 @@ const CalendarEvent = require('../models/CalendarEvent');
 const WorkflowQueueItem = require('../models/WorkflowQueueItem');
 const WorkflowDMActivity = require('../models/WorkflowDMActivity');
 const aiService = require('../utils/aiService');
+const automationService = require('../services/automationService');
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
@@ -419,6 +420,65 @@ exports.createSkill = async (req, res) => { try { ok(res, await Skill.create({ .
 exports.updateSkill = async (req, res) => { try { ok(res, await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
 exports.deleteSkill = async (req, res) => { try { await Skill.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
+exports.processCv = async (req, res) => {
+    try {
+        const { cvText } = req.body;
+        console.log("[ProcessCv] Received CV text, length:", cvText?.length);
+        if (!cvText) return fail(res, 'No CV text provided', 400);
+
+        console.log("[ProcessCv] Calling AI parse...");
+        const structuredData = await aiService.parseCv(cvText);
+        console.log("[ProcessCv] AI response received.");
+        const { profile, skills } = structuredData;
+
+        // 1. Update Profile
+        const updatedProfile = await CareerProfile.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+                ...profile,
+                userId: req.user._id,
+                summary: profile.summary || ''
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        // 2. Clear old skills and insert new ones
+        await Skill.deleteMany({ userId: req.user._id });
+        const skillDocs = skills.map(s => ({
+            userId: req.user._id,
+            name: s.name,
+            level: s.level || 70,
+            category: s.category || 'Technical',
+            emoji: s.emoji || '⚡'
+        }));
+        await Skill.insertMany(skillDocs);
+
+        ok(res, {
+            profile: updatedProfile,
+            skillsCount: skillDocs.length,
+            message: "CV successfully parsed and profile updated."
+        });
+    } catch (e) {
+        console.error("[ProcessCv] Error:", e);
+        fail(res, e);
+    }
+};
+
+exports.matchJob = async (req, res) => {
+    try {
+        const { jobDescription } = req.body;
+        if (!jobDescription) return fail(res, 'No job description provided', 400);
+
+        const skills = await Skill.find({ userId: req.user._id });
+        const analysis = await aiService.compareJob(jobDescription, skills);
+
+        ok(res, analysis);
+    } catch (e) {
+        console.error("[MatchJob] Error:", e);
+        fail(res, e);
+    }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SOCIAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -560,5 +620,15 @@ exports.saveSettings = async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         ok(res, s);
+    } catch (e) { fail(res, e); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  AUTOMATION
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.runAutomation = async (req, res) => {
+    try {
+        const result = await automationService.executeAll(req.user._id);
+        ok(res, result);
     } catch (e) { fail(res, e); }
 };

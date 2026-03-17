@@ -35,14 +35,14 @@ Successfully converted the static dashboard to a fully dynamic, data-driven dash
 
 ## Frontend Implementation
 
-### 1. Dashboard Service (`Sorigin-AMS-frontend/src/services/dashboardService.ts`)
+### 1. Dashboard Service (`personal-portal-frontend/src/services/dashboardService.ts`)
 
 - Complete TypeScript service with all API integration methods
 - Proper error handling and response typing
 - Utility functions for date range filtering
 - Support for real-time data updates
 
-### 2. Updated Dashboard Component (`Sorigin-AMS-frontend/src/pages/Dashboard/Home.tsx`)
+### 2. Updated Dashboard Component (`personal-portal-frontend/src/pages/Dashboard/Home.tsx`)
 
 - **Real-time Data**: Auto-refresh every 5 minutes
 - **Loading States**: Full-screen loading overlay for initial load
@@ -165,4 +165,4 @@ Successfully converted the static dashboard to a fully dynamic, data-driven dash
 
 ## Conclusion
 
-The dashboard now provides administrators with a comprehensive, real-time view of the Sorigin-AMS system with beautiful visualizations, actionable insights, and seamless user experience. All data is dynamically loaded from the backend, ensuring accuracy and relevance for operational decision-making.
+The dashboard now provides administrators with a comprehensive, real-time view of the Personal Portal system with beautiful visualizations, actionable insights, and seamless user experience. All data is dynamically loaded from the backend, ensuring accuracy and relevance for operational decision-making.

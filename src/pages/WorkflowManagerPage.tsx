@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageMeta from '../shared/PageMeta';
-import { IWorkflowConfig, IWorkflowDMActivity, IWorkflowQueueItem, workflowApi } from '../services/personalApi';
+import { IWorkflowConfig, IWorkflowDMActivity, IWorkflowQueueItem, workflowApi, automationApi } from '../services/personalApi';
 
 const defaultConfig: IWorkflowConfig = {
   connections: { instagram: false, googleDrive: false, captionEngine: false },
@@ -30,6 +30,8 @@ export default function WorkflowManagerPage() {
 
   const [newAsset, setNewAsset] = useState({ fileName: '', driveFolder: '', caption: '', scheduledAt: '' });
   const [newDM, setNewDM] = useState({ sender: '', message: '', category: 'general' as IWorkflowDMActivity['category'] });
+  const [runningAutomation, setRunningAutomation] = useState(false);
+  const [automationResult, setAutomationResult] = useState<any>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -175,6 +177,20 @@ export default function WorkflowManagerPage() {
     }
   };
 
+  const handleRunAutomation = async () => {
+    setRunningAutomation(true);
+    setAutomationResult(null);
+    try {
+      const res = await automationApi.run();
+      setAutomationResult(res);
+      await loadAll(); // Refresh data
+    } catch (e) {
+      console.error('Automation failed', e);
+    } finally {
+      setRunningAutomation(false);
+    }
+  };
+
   const planItems = [
     'Use Meta official APIs + webhooks for Instagram publishing and DM events.',
     'Use Google Drive API watcher (folder-based ingestion) for media intake.',
@@ -207,6 +223,49 @@ export default function WorkflowManagerPage() {
             <span>{readiness}%</span>
             {saving && <span className="text-cyan-100">· Saving...</span>}
           </div>
+          <button
+            onClick={handleRunAutomation}
+            disabled={runningAutomation}
+            className={`mt-6 flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold shadow-lg transition-all ${runningAutomation
+                ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                : 'bg-white text-blue-700 hover:bg-cyan-50 hover:scale-105'
+              }`}
+          >
+            {runningAutomation ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Executing Workflows...
+              </>
+            ) : (
+              <>
+                <span>✨ Run Automation Engine</span>
+              </>
+            )}
+          </button>
+
+          {automationResult && (
+            <div className="mt-4 rounded-xl bg-white/10 p-4 text-xs text-white backdrop-blur-md">
+              <p className="font-bold uppercase tracking-wider text-cyan-200">Execution Report:</p>
+              <div className="mt-2 grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div>
+                  <p className="text-cyan-300">Notes Summarized</p>
+                  <p className="text-lg font-bold">{automationResult.summaries?.notes || 0}</p>
+                </div>
+                <div>
+                  <p className="text-cyan-300">Captures Refined</p>
+                  <p className="text-lg font-bold">{automationResult.summaries?.captures || 0}</p>
+                </div>
+                <div>
+                  <p className="text-cyan-300">Queues Posted</p>
+                  <p className="text-lg font-bold">{automationResult.queueProcessed || 0}</p>
+                </div>
+                <div>
+                  <p className="text-cyan-300">DMs Triaged</p>
+                  <p className="text-lg font-bold">{automationResult.dmsTriaged || 0}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -224,11 +283,10 @@ export default function WorkflowManagerPage() {
                 <button
                   key={conn.key}
                   onClick={() => toggleConnection(conn.key)}
-                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
-                    config.connections[conn.key]
+                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${config.connections[conn.key]
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <span>{conn.label}</span>
                   <span>{config.connections[conn.key] ? 'Connected' : 'Connect'}</span>
@@ -273,9 +331,8 @@ export default function WorkflowManagerPage() {
               <div className="flex items-end">
                 <button
                   onClick={() => saveConfig({ ...config, dmRules: { ...config.dmRules, autoAcknowledge: !config.dmRules.autoAcknowledge } })}
-                  className={`w-full rounded-xl px-3 py-2 text-sm font-semibold ${
-                    config.dmRules.autoAcknowledge ? 'bg-cyan-600 text-white' : 'border border-gray-200 bg-white text-gray-600'
-                  }`}
+                  className={`w-full rounded-xl px-3 py-2 text-sm font-semibold ${config.dmRules.autoAcknowledge ? 'bg-cyan-600 text-white' : 'border border-gray-200 bg-white text-gray-600'
+                    }`}
                 >
                   {config.dmRules.autoAcknowledge ? 'Auto Acknowledge: ON' : 'Auto Acknowledge: OFF'}
                 </button>
@@ -459,15 +516,14 @@ export default function WorkflowManagerPage() {
                     <td className="py-3 pr-3 text-gray-600">{item.driveFolder}</td>
                     <td className="py-3 pr-3">
                       <span
-                        className={`${successPill} ${
-                          item.status === 'posted'
+                        className={`${successPill} ${item.status === 'posted'
                             ? 'bg-emerald-100 text-emerald-700'
                             : item.status === 'scheduled'
-                            ? 'bg-blue-100 text-blue-700'
-                            : item.status === 'ready'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
+                              ? 'bg-blue-100 text-blue-700'
+                              : item.status === 'ready'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-gray-100 text-gray-600'
+                          }`}
                       >
                         {item.status}
                       </span>

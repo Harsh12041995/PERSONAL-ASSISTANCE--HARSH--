@@ -517,7 +517,7 @@ export const authService = {
     localStorage.removeItem(AUTH_RESPONSE_KEY);
     localStorage.removeItem(COMPANY_KEY);
     localStorage.removeItem(GROUPS_KEY);
-    localStorage.removeItem("ams_dashboard_view"); // Clear dashboard view preference
+    localStorage.removeItem("personal_portal_dashboard_view"); // Clear dashboard view preference
   },
 
   /**
@@ -841,7 +841,7 @@ export const authService = {
     localStorage.removeItem(AUTH_RESPONSE_KEY);
     localStorage.removeItem(COMPANY_KEY);
     localStorage.removeItem(GROUPS_KEY);
-    localStorage.removeItem("ams_dashboard_view"); // Clear dashboard view preference
+    localStorage.removeItem("personal_portal_dashboard_view"); // Clear dashboard view preference
   },
 
   /**

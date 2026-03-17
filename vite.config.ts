@@ -34,12 +34,12 @@ export default defineConfig(({ mode }) => {
     VITE_APP_TITLE:
       env.VITE_APP_TITLE ||
       (isLocal
-        ? "AMS Portal (Local)"
+        ? "Personal Portal (Local)"
         : isDev
-          ? "AMS Portal (Development)"
+          ? "Personal Portal (Development)"
           : isStaging
-            ? "AMS Portal (Staging)"
-            : "AMS Portal"),
+            ? "Personal Portal (Staging)"
+            : "Personal Portal"),
     VITE_DEBUG: env.VITE_DEBUG || (isLocal || isDev ? "true" : "false"),
   };
 

@@ -8,8 +8,8 @@ export default function NotFound() {
   return (
     <>
       <PageMeta
-        title="SORIGIN | 404 Page Not Found"
-        description="SORIGIN - Clean 404 error page for your admin dashboard"
+        title="PERSONAL PORTAL | 404 Page Not Found"
+        description="PERSONAL PORTAL - Clean 404 error page for your admin dashboard"
       />
       <div className="relative flex flex-col h-[100dvh] overflow-hidden bg-white dark:bg-gray-900 z-10 px-4">
         <GridShape />
@@ -61,7 +61,7 @@ export default function NotFound() {
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 pb-2">
-          &copy; {new Date().getFullYear()} — SORIGIN
+          &copy; {new Date().getFullYear()} — PERSONAL PORTAL
         </p>
       </div>
     </>
