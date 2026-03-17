@@ -15,43 +15,71 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // MongoDB Connection
+let isConnected = false;
 const connectDB = async () => {
+    if (isConnected && mongoose.connection.readyState === 1) {
+        return;
+    }
+    
+    console.log('🔄 Connecting to MongoDB...');
     try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/harsh_personal', {
-            // Options to help with connectivity issues in some environments
-            connectTimeoutMS: 10000,
-            socketTimeoutMS: 45000,
+        const conn = await mongoose.connect(process.env.MONGODB_URI, {
+            connectTimeoutMS: 5000, // Faster timeout for serverless
+            socketTimeoutMS: 10000,
+            serverSelectionTimeoutMS: 5000,
         });
+        isConnected = true;
         console.log(`✅  MongoDB Connected — ${conn.connection.host}`);
     } catch (error) {
         console.error('❌  MongoDB Error:', error.message);
-        // Don't exit process in dev, but log details
-        if (error.code === 'ECONNREFUSED' || error.name === 'MongoServerSelectionError') {
-            console.error('💡 TIP: This looks like a network or DNS problem with MongoDB.');
-            console.error('   Check if your internet is stable and if the MongoDB URI is correct.');
+        // Throw error so the handler can catch it or the function can fail visibly
+        if (process.env.NODE_ENV === 'production') {
+            throw error;
         }
     }
 };
 
-connectDB();
+// Middleware to ensure DB connection
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        res.status(503).json({
+            success: false,
+            message: "Database connection failed. Please ensure your MongoDB Atlas IP whitelist is set to '0.0.0.0/0'.",
+            error: error.message
+        });
+    }
+});
 
-// ── Public routes ─────────────────────────────────────────────────────────────
-app.use('/api/v1/auth', require('./routes/auth'));
+// ── Request Logging Middleware ──────────────────────────────────────────────
+app.use((req, res, next) => {
+    console.log(`📡 ${req.method} ${req.url}`);
+    next();
+});
 
-// ── Protected personal module routes ─────────────────────────────────────────
-app.use('/api/v1/personal', protect, require('./routes/personal'));
+// ── Route configuration ──────────────────────────────────────────────────────
+const apiVersion = '/v1';
+const apiPrefix = '/api' + apiVersion;
 
-// ── Admin routes ─────────────────────────────────────────────────────────────
-app.use('/api/v1/admin', require('./routes/admin'));
+// Handle both /api/v1 and /v1 for Netlify serverless compatibility
+const routes = {
+    auth: require('./routes/auth'),
+    personal: require('./routes/personal'),
+    admin: require('./routes/admin'),
+    chat: require('./routes/chat'),
+    notifications: require('./routes/notification')
+};
 
-// ── Chat / AI routes ─────────────────────────────────────────────────────────
-app.use('/api/v1/chat', require('./routes/chat'));
-
-// ── Notification routes ──────────────────────────────────────────────────────
-app.use('/api/v1/notifications', require('./routes/notification'));
+app.use([`${apiPrefix}/auth`, `${apiVersion}/auth`, '/api/auth'], routes.auth);
+app.use([`${apiPrefix}/personal`, `${apiVersion}/personal`, '/api/personal'], protect, routes.personal);
+app.use([`${apiPrefix}/admin`, `${apiVersion}/admin`, '/api/admin'], routes.admin);
+app.use([`${apiPrefix}/chat`, `${apiVersion}/chat`, '/api/chat'], routes.chat);
+app.use([`${apiPrefix}/notifications`, `${apiVersion}/notifications`, '/api/notifications'], routes.notifications);
 
 // ── Health check ──────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
+app.get(['/health', '/api/health'], (_req, res) => {
     const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     res.json({
         status: 'ok',
