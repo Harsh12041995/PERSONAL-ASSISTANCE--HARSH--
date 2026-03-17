@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: IUserSettings = {
     telegramUsername: '',
   },
   geminiApiKey: '',
+  chatgptApiKey: '',
   currency: 'INR',
   dateFormat: 'DD/MM/YYYY',
 };

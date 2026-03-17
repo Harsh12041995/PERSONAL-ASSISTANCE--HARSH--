@@ -5,7 +5,7 @@ import { settingsApi, IUserSettings } from '../services/personalApi';
 const DEFAULTS: IUserSettings = {
     displayName: 'User', bio: 'Building my personal command center 🚀',
     profileImage: '',
-    timezone: 'Asia/Kolkata', theme: 'light', geminiApiKey: '',
+    timezone: 'Asia/Kolkata', theme: 'light', geminiApiKey: '', chatgptApiKey: '',
     currency: 'INR', dateFormat: 'DD/MM/YYYY',
     notifications: { dailyDigest: true, habitReminders: true, goalDeadlines: true, contactFollowUp: true },
     integrations: {
@@ -61,6 +61,7 @@ export default function SettingsPage() {
     const [saved, setSaved] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showKey, setShowKey] = useState(false);
+    const [showChatKey, setShowChatKey] = useState(false);
     const [exporting, setExporting] = useState(false);
 
     // ── Load from MongoDB on mount ──────────────────────────────────────────
@@ -113,7 +114,8 @@ export default function SettingsPage() {
         setExporting(true);
         try {
             const token = localStorage.getItem('accessToken') || '';
-            const res = await fetch('http://localhost:5001/api/v1/personal/export', {
+            const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+            const res = await fetch(`${baseUrl}/personal/export`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const blob = await res.blob();
@@ -231,6 +233,28 @@ export default function SettingsPage() {
                     <div className="mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5">
                         <span className="text-emerald-600 text-sm">✓</span>
                         <span className="text-xs text-emerald-700 font-medium">Gemini API key saved — AI Chat is ready!</span>
+                    </div>
+                )}
+
+                <div className="mt-6">
+                    <label className="text-xs font-semibold text-gray-600 block mb-1">ChatGPT API Key (OpenAI)</label>
+                    <div className="relative">
+                        <input type={showChatKey ? 'text' : 'password'} value={s.chatgptApiKey} onChange={e => update({ chatgptApiKey: e.target.value })}
+                            placeholder="sk-..."
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        <button type="button" onClick={() => setShowChatKey(p => !p)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                            {showChatKey ? '🙈' : '👁️'}
+                        </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                        Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-violet-600 underline">platform.openai.com</a>.
+                    </p>
+                </div>
+                {s.chatgptApiKey && (
+                    <div className="mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5">
+                        <span className="text-emerald-600 text-sm">✓</span>
+                        <span className="text-xs text-emerald-700 font-medium">ChatGPT API key saved!</span>
                     </div>
                 )}
             </div>

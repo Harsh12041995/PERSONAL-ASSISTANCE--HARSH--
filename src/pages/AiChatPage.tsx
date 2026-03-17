@@ -49,7 +49,7 @@ export default function AiChatPage() {
   useEffect(() => {
     settingsApi
       .get()
-      .then((s) => setHasApiKey(Boolean(s?.geminiApiKey?.trim())))
+      .then((s) => setHasApiKey(Boolean(s?.geminiApiKey?.trim() || s?.chatgptApiKey?.trim())))
       .catch(() => setHasApiKey(false));
   }, []);
 

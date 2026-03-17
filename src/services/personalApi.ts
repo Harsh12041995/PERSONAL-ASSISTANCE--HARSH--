@@ -3,7 +3,7 @@
 
 import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1';
+const BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // ─── Auth token helper ────────────────────────────────────────────────────────
 const token = () => localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
@@ -233,7 +233,7 @@ export interface IUserSettings {
             slaMinutes: number;
         };
     };
-    geminiApiKey: string; currency: string; dateFormat: string;
+    geminiApiKey: string; chatgptApiKey: string; currency: string; dateFormat: string;
 }
 export const settingsApi = {
     get: () => api.get('/settings').then(data),

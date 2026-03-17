@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1';
+const BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 const token = () => localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
 
 const api = axios.create({ baseURL: `${BASE}/chat` });

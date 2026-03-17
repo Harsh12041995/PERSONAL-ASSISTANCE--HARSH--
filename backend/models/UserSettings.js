@@ -52,6 +52,7 @@ const UserSettingsSchema = new mongoose.Schema({
         },
     },
     geminiApiKey: { type: String, default: '' },
+    chatgptApiKey: { type: String, default: '' },
     currency: { type: String, default: 'INR' },
     dateFormat: { type: String, default: 'DD/MM/YYYY' },
 }, { timestamps: true });
