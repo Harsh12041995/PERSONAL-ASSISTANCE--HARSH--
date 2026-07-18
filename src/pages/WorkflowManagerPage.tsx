@@ -35,12 +35,15 @@ export default function WorkflowManagerPage() {
 
   const loadAll = async () => {
     setLoading(true);
-    try {
-      const [cfg, q, dm] = await Promise.all([
-        workflowApi.getConfig(),
-        workflowApi.getQueue(),
-        workflowApi.getDMActivity(),
-      ]);
+    // Load each section independently — a failure in one (e.g. DM activity)
+    // must not blank config + queue, which have their own working endpoints.
+    const [cfgR, qR, dmR] = await Promise.allSettled([
+      workflowApi.getConfig(),
+      workflowApi.getQueue(),
+      workflowApi.getDMActivity(),
+    ]);
+    if (cfgR.status === 'fulfilled') {
+      const cfg = cfgR.value;
       setConfig({
         ...defaultConfig,
         ...(cfg || {}),
@@ -48,13 +51,13 @@ export default function WorkflowManagerPage() {
         ioPoints: { ...defaultConfig.ioPoints, ...(cfg?.ioPoints || {}) },
         dmRules: { ...defaultConfig.dmRules, ...(cfg?.dmRules || {}) },
       });
-      setQueue(q || []);
-      setDmActivity(dm || []);
-    } catch (e) {
-      console.error('Failed to load workflow module', e);
-    } finally {
-      setLoading(false);
     }
+    if (qR.status === 'fulfilled') setQueue(qR.value || []);
+    if (dmR.status === 'fulfilled') setDmActivity(dmR.value || []);
+    if (cfgR.status === 'rejected' && qR.status === 'rejected' && dmR.status === 'rejected') {
+      console.error('Failed to load workflow module');
+    }
+    setLoading(false);
   };
 
   useEffect(() => {

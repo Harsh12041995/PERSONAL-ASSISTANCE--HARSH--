@@ -4,7 +4,6 @@ import { useEffect } from "react";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Toaster } from "react-hot-toast";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 
@@ -32,6 +31,9 @@ import HealthPage from "./pages/HealthPage";
 import CareerPage from "./pages/CareerPage";
 import SocialPage from "./pages/SocialPage";
 import AiChatPage from "./pages/AiChatPage";
+import AgentPage from "./pages/AgentPage";
+import CommandCenterPage from "./pages/CommandCenterPage";
+import PortfolioPage from "./pages/PortfolioPage";
 import Calendar from "./pages/Calendar";
 import SettingsPage from "./pages/SettingsPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -54,7 +56,6 @@ export default function App() {
     <ErrorBoundary>
       <ScrollToTop />
       <ToastContainer position="top-right" autoClose={3000} />
-      <Toaster position="bottom-right" />
       <ScrollToTopButton />
 
       <Routes>
@@ -83,6 +84,9 @@ export default function App() {
           <Route path="/blogs" element={<ProtectedRoute requiredPermission="blogs"><BlogsPage /></ProtectedRoute>} />
           <Route path="/workflow-manager" element={<ProtectedRoute requiredPermission="social"><WorkflowManagerPage /></ProtectedRoute>} />
           <Route path="/ai-chat" element={<ProtectedRoute requiredPermission="ai_chat"><AiChatPage /></ProtectedRoute>} />
+          <Route path="/agent" element={<ProtectedRoute requiredPermission="ai_chat"><AgentPage /></ProtectedRoute>} />
+          <Route path="/hq" element={<ProtectedRoute requiredPermission="ai_chat"><CommandCenterPage /></ProtectedRoute>} />
+          <Route path="/portfolio" element={<ProtectedRoute requiredPermission="tasks"><PortfolioPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><UserManagement /></ProtectedRoute>} />
           <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><PermissionMatrix /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute requiredPermission="tasks"><SettingsPage /></ProtectedRoute>} />

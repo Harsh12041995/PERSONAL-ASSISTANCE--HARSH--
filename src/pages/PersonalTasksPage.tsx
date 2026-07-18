@@ -48,7 +48,7 @@ export default function PersonalTasksPage() {
         const task = tasks.find(t => t._id === id)!;
         try {
             const updated = await taskApi.update(id, { done: !task.done });
-            setTasks(prev => prev.map(t => t._id === id ? updated : t));
+            if (updated) setTasks(prev => prev.map(t => t._id === id ? updated : t));
         } catch { setError('Failed to update task.'); }
     };
 

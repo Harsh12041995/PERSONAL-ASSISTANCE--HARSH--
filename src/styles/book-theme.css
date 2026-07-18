@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOOK SKIN — "the portal as an illustrated journal"
+   Activated by the `.book` class on <html> (see ThemeContext). Pure CSS
+   re-dress of the existing Tailwind UI: paper, ink, leather, gold leaf.
+   These rules are UNLAYERED on purpose — they outrank Tailwind's @layer
+   utilities without !important, and never touch behavior.
+   Night reading (.dark.book) is just a token swap.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..700&family=Caveat:wght@500;700&display=swap');
+
+/* ── Tokens ──────────────────────────────────────────────────────────────── */
+.book {
+  --paper: #f8f1df;        /* page */
+  --paper-2: #efe5cb;      /* aged page / wells */
+  --desk: #e3d5b3;         /* the writing desk under the pages */
+  --ink: #3a2e1f;          /* main text */
+  --ink-soft: #7a6a4f;     /* secondary text */
+  --ink-faint: #a2967c;    /* tertiary */
+  --line: #cdb88c;         /* rules & borders */
+  --accent: #8b3a2e;       /* oxblood ink (replaces violet) */
+  --accent-deep: #6e2c22;
+  --accent-wash: #f1e0d3;  /* pale wash behind accents */
+  --gold: #b8923f;         /* gold tooling */
+  --leather: #5b3a26;      /* cover leather */
+  --leather-2: #43291a;
+  --paper-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark.book {
+  --paper: #2c251a;
+  --paper-2: #251f15;
+  --desk: #171209;
+  --ink: #ecdfc2;
+  --ink-soft: #b6a686;
+  --ink-faint: #8d7f63;
+  --line: #57492e;
+  --accent: #d98a66;
+  --accent-deep: #e8a684;
+  --accent-wash: #3a2c21;
+  --gold: #caa45a;
+  --leather: #33200f;
+  --leather-2: #24160a;
+}
+
+/* ── The desk & global type ──────────────────────────────────────────────── */
+.book body {
+  background:
+    var(--paper-noise),
+    radial-gradient(120% 90% at 50% 0%, transparent 40%, rgba(60, 40, 15, 0.18) 100%),
+    var(--desk);
+  color: var(--ink);
+  font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+.book .bg-gray-50\/50, .book .bg-gray-50, .book .dark\:bg-gray-950 { background-color: transparent; }
+.book h1 { font-family: 'Caveat', 'Segoe Script', cursive; letter-spacing: 0.01em; }
+.book h2, .book h3 { font-family: 'EB Garamond', Georgia, serif; }
+.book h2::after { content: ' ❦'; color: var(--gold); font-size: 0.9em; }
+.book .uppercase { letter-spacing: 0.14em; }
+.book .font-mono { font-family: 'EB Garamond', Georgia, serif; font-style: italic; }
+
+/* ── Cards become pages (stacked-sheet shadow, slightly organic corners) ─── */
+.book .rounded-2xl {
+  background-color: var(--paper);
+  background-image: var(--paper-noise);
+  border-color: var(--line);
+  border-radius: 8px 16px 9px 14px / 14px 9px 16px 8px;
+  box-shadow:
+    0 1px 2px rgba(55, 38, 14, 0.12),
+    0 0 0 1px rgba(120, 92, 50, 0.16),
+    3px 4px 0 -2px var(--paper-2),
+    3px 4px 0 -1px rgba(120, 92, 50, 0.18),
+    6px 8px 0 -4px var(--paper-2),
+    6px 8px 0 -3px rgba(120, 92, 50, 0.14);
+}
+.book .rounded-xl { border-radius: 7px 11px 8px 10px / 10px 8px 11px 7px; }
+.book .shadow-sm, .book .shadow-md, .book .shadow-xl { --tw-shadow: 0 0 #0000; }
+
+/* Re-ink the gray scale onto paper */
+.book .bg-white { background-color: var(--paper); }
+.book .bg-gray-100, .book .bg-gray-800 { background-color: var(--paper-2); }
+.book .bg-gray-900 { background-color: var(--paper); }
+.book .text-gray-900, .book .text-gray-800, .book .text-white\/90 { color: var(--ink); }
+.book .text-gray-700, .book .text-gray-600 { color: var(--ink-soft); }
+.book .text-gray-500, .book .text-gray-400 { color: var(--ink-faint); }
+.book .text-gray-300, .book .text-gray-200 { color: var(--ink-soft); }
+.book .border-gray-50, .book .border-gray-100, .book .border-gray-200,
+.book .border-gray-700, .book .border-gray-800 { border-color: var(--line); }
+.book .hover\:bg-gray-50:hover, .book .hover\:bg-gray-100:hover { background-color: var(--paper-2); }
+.book .divide-gray-100 > * + *, .book .divide-gray-800 > * + * { border-color: var(--line); }
+
+/* Violet → oxblood ink & gold */
+.book .text-violet-600, .book .text-violet-700, .book .text-violet-500,
+.book .text-violet-400, .book .text-indigo-900\/80,
+.book .text-violet-800, .book .text-violet-900 { color: var(--accent); }
+.book .text-violet-300, .book .text-violet-200, .book .text-violet-100 { color: #ecd9b4; }
+.book .bg-violet-50, .book .bg-violet-100, .book .bg-violet-500\/10, .book .bg-violet-500\/15 { background-color: var(--accent-wash); }
+.book .hover\:bg-violet-100:hover, .book .hover\:bg-violet-500\/20:hover { background-color: var(--accent-wash); filter: brightness(0.96); }
+.book .bg-violet-600, .book .bg-violet-500 { background-color: var(--accent); }
+.book .hover\:bg-violet-700:hover { background-color: var(--accent-deep); }
+.book .border-violet-100, .book .border-violet-400, .book .border-violet-600,
+.book .border-violet-900\/50 { border-color: var(--gold); }
+.book .ring-violet-300, .book .focus\:ring-violet-300:focus { --tw-ring-color: var(--gold); }
+.book svg [stroke="#8b5cf6"] { stroke: var(--accent); }
+
+/* Gradients: the hero becomes a tooled leather cover; small tiles get a
+   vintage-plate treatment (muted, sepia) so their identity survives. */
+.book .bg-gradient-to-br { filter: saturate(0.55) sepia(0.22) contrast(0.96); }
+.book .from-violet-600.via-indigo-600,
+.book .from-violet-600.to-indigo-600 {
+  background-image:
+    radial-gradient(130% 100% at 20% 0%, rgba(255, 226, 160, 0.14), transparent 45%),
+    var(--paper-noise),
+    linear-gradient(135deg, var(--leather) 0%, var(--leather-2) 60%, #2c1a0e 100%);
+  border: 3px double var(--gold);
+  filter: none;
+}
+.book .shadow-violet-200 { box-shadow: 0 14px 28px -12px rgba(40, 22, 6, 0.55); }
+.book .from-violet-50, .book .to-indigo-50\/,
+.book .from-indigo-50\/50 { background-image: none; background-color: var(--paper-2); }
+
+/* ── Sidebar = table of contents with a stitched leather spine ───────────── */
+.book aside {
+  background: var(--paper-noise), linear-gradient(90deg, var(--paper-2), var(--paper) 30%);
+  border-right: 1px solid var(--line);
+  border-left: 10px solid var(--leather);
+}
+.book aside::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed rgba(240, 214, 160, 0.55); /* spine stitching */
+  pointer-events: none;
+}
+.book aside .bg-white { background-color: transparent; }
+
+/* ── Header = the running head of the page ───────────────────────────────── */
+.book header {
+  background: var(--paper-noise), var(--paper);
+  border-bottom: 3px double var(--line);
+}
+
+/* ── Inputs: you write in the book (handwriting on a dashed rule) ────────── */
+.book input[type='text'], .book input[type='search'], .book input[type='email'],
+.book input[type='url'], .book input[type='number'], .book textarea {
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px dashed var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: 'Caveat', 'Segoe Script', cursive;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.book input::placeholder, .book textarea::placeholder { color: var(--ink-faint); font-family: 'Caveat', cursive; }
+.book input[type='text']:focus, .book input[type='search']:focus,
+.book input[type='email']:focus, .book textarea:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+  --tw-ring-color: transparent;
+}
+.book select {
+  background-color: var(--paper-2);
+  border-color: var(--line);
+  color: var(--ink);
+  font-family: 'EB Garamond', Georgia, serif;
+}
+.book kbd { font-family: 'EB Garamond', Georgia, serif; }
+
+/* ── Scrollbar as a silk ribbon ──────────────────────────────────────────── */
+.book ::-webkit-scrollbar { width: 10px; height: 10px; }
+.book ::-webkit-scrollbar-track { background: transparent; }
+.book ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 0; border: 2px solid var(--desk); }
+
+/* ── Toasts on parchment ─────────────────────────────────────────────────── */
+.book .Toastify__toast {
+  background: var(--paper-noise), var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-family: 'EB Garamond', Georgia, serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DECOR — the living margins (BookDecor.tsx). Fixed, pointer-events: none.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.book-decor {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--ink);
+}
+.book-decor svg { overflow: visible; }
+
+/* Paper plane crosses the sky */
+.bd-plane { position: absolute; top: 12%; left: -8vw; animation: bd-fly 26s linear infinite; opacity: 0.85; }
+.bd-plane svg { animation: bd-bob 3.2s ease-in-out infinite; }
+@keyframes bd-fly {
+  0% { transform: translateX(-8vw) rotate(8deg); }
+  48% { transform: translateX(112vw) rotate(4deg); }
+  48.01%, 100% { transform: translateX(-8vw) rotate(8deg); }
+}
+
+/* Vintage car drives along the bottom edge */
+.bd-car { position: absolute; bottom: 6px; right: -14vw; animation: bd-drive 38s linear infinite; animation-delay: 4s; }
+@keyframes bd-drive {
+  0% { transform: translateX(0) scaleX(-1); }
+  55% { transform: translateX(-128vw) scaleX(-1); }
+  55.01%, 100% { transform: translateX(0) scaleX(-1); }
+}
+.bd-wheel { animation: bd-spin 0.9s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes bd-spin { to { transform: rotate(-360deg); } }
+
+/* Reading robot in the corner */
+.bd-robot { position: absolute; bottom: 10px; left: 18px; animation: bd-bob 4s ease-in-out infinite; opacity: 0.9; }
+.bd-robot-arm { animation: bd-wave 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 10% 85%; }
+@keyframes bd-wave { 0%, 70%, 100% { transform: rotate(0deg); } 78% { transform: rotate(-24deg); } 88% { transform: rotate(6deg); } }
+.bd-robot-eye { animation: bd-blink 5s steps(1) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes bd-blink { 0%, 92%, 100% { transform: scaleY(1); } 94%, 97% { transform: scaleY(0.1); } }
+.bd-robot-light { animation: bd-twinkle 2.2s ease-in-out infinite; }
+
+/* Hot-air balloon drifts up the right margin */
+.bd-balloon { position: absolute; right: 4%; bottom: -18vh; animation: bd-rise 60s linear infinite; opacity: 0.85; }
+.bd-balloon svg { animation: bd-sway 6s ease-in-out infinite; }
+@keyframes bd-rise {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-140vh); }
+}
+@keyframes bd-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+
+/* Fountain pen writes an endless flourish (top-left margin) */
+.bd-ink { position: absolute; top: 84px; left: 24px; opacity: 0.7; }
+.bd-ink .bd-stroke {
+  stroke-dasharray: 220;
+  stroke-dashoffset: 220;
+  animation: bd-write 9s ease-in-out infinite;
+}
+@keyframes bd-write {
+  0% { stroke-dashoffset: 220; }
+  45%, 70% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -220; }
+}
+
+/* Birds, far away */
+.bd-birds { position: absolute; top: 7%; right: -6vw; animation: bd-glide 44s linear infinite; animation-delay: 10s; opacity: 0.6; }
+@keyframes bd-glide {
+  0% { transform: translateX(0); }
+  60% { transform: translateX(-116vw); }
+  60.01%, 100% { transform: translateX(0); }
+}
+
+/* Gold filigree corners (static) */
+.bd-corner { position: absolute; opacity: 0.5; color: var(--gold); }
+.bd-corner.tl { top: 66px; left: 6px; }
+.bd-corner.br { bottom: 6px; right: 6px; transform: rotate(180deg); }
+
+/* Shared micro-motions */
+@keyframes bd-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes bd-twinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+@media (max-width: 900px) {
+  .bd-car, .bd-balloon, .bd-ink { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .book-decor * { animation: none !important; }
+  .bd-plane, .bd-car, .bd-birds, .bd-balloon { display: none; }
+}

@@ -23,6 +23,8 @@ const Calendar: React.FC = () => {
   const [eventEndDate, setEventEndDate] = useState("");
   const [eventLevel, setEventLevel] = useState("Primary");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const calendarRef = useRef<FullCalendar>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
@@ -47,6 +49,7 @@ const Calendar: React.FC = () => {
       setEvents(mapped);
     } catch (e) {
       console.error("Failed to load calendar events", e);
+      setError("Couldn't load your calendar. Check your connection and retry.");
     }
   };
 
@@ -83,9 +86,12 @@ const Calendar: React.FC = () => {
       allDay: true,
     };
 
+    setSaving(true);
+    setError("");
     try {
       if (selectedEvent?.id) {
         const updated = await calendarApi.update(selectedEvent.id, payload);
+        if (!updated) throw new Error("Event not found");
         setEvents((prev) =>
           prev.map((event) =>
             event.id === selectedEvent.id
@@ -112,12 +118,15 @@ const Calendar: React.FC = () => {
         };
         setEvents((prevEvents) => [...prevEvents, newEvent]);
       }
+      // Only dismiss the modal once the save actually succeeded.
+      closeModal();
+      resetModalFields();
     } catch (e) {
       console.error("Failed saving event", e);
+      setError("Couldn't save the event — please try again.");
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
-    resetModalFields();
   };
 
   const handleDeleteEvent = async () => {
@@ -129,6 +138,7 @@ const Calendar: React.FC = () => {
       resetModalFields();
     } catch (e) {
       console.error("Failed deleting event", e);
+      setError("Couldn't delete the event — please try again.");
     }
   };
 
@@ -138,6 +148,7 @@ const Calendar: React.FC = () => {
     setEventEndDate("");
     setEventLevel("Primary");
     setSelectedEvent(null);
+    setError("");
   };
 
   return (
@@ -146,6 +157,9 @@ const Calendar: React.FC = () => {
         title="Personal Calendar"
         description="Manage your personal events and schedule"
       />
+      {error && !isOpen && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:bg-red-950/40">{error}</p>
+      )}
       <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="custom-calendar">
           <FullCalendar
@@ -251,6 +265,9 @@ const Calendar: React.FC = () => {
                 />
               </div>
             </div>
+            {error && (
+              <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</p>
+            )}
             <div className="mt-6 flex flex-wrap items-center gap-3 modal-footer sm:justify-end">
               {selectedEvent && (
                 <button
@@ -271,9 +288,10 @@ const Calendar: React.FC = () => {
               <button
                 onClick={handleAddOrUpdateEvent}
                 type="button"
-                className="btn btn-success btn-update-event flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto"
+                disabled={saving}
+                className="btn btn-success btn-update-event flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60 sm:w-auto"
               >
-                {selectedEvent ? "Update Changes" : "Add Event"}
+                {saving ? "Saving…" : selectedEvent ? "Update Changes" : "Add Event"}
               </button>
             </div>
           </div>

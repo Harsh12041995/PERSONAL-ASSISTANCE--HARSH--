@@ -11,6 +11,8 @@ export const FEATURE_PERMISSION_MAP: Record<string, string> = {
   '/blogs': 'blogs',
   '/workflow-manager': 'social',
   '/ai-chat': 'ai_chat',
+  '/hq': 'ai_chat',
+  '/portfolio': 'tasks',
   '/settings': 'tasks',
   '/profile': 'tasks',
   '/admin/users': 'user_management',

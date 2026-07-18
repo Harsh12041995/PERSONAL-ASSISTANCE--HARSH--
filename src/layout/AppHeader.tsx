@@ -1,16 +1,42 @@
-import { useEffect, useRef, useState } from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useSidebar } from "../context/SidebarContext";
-// import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
+import { ThemeToggleButton, BookToggleButton } from "../components/common/ThemeToggleButton";
 import NotificationPanel from "../components/notifications/NotificationPanel";
 import UserDropdown from "../components/header/UserDropdown";
 import { notificationService } from "../services/notificationService";
+
+// Destinations searchable from the header command palette (Ctrl+K)
+const SEARCH_PAGES = [
+  { name: "Home", path: "/", emoji: "🏠", keywords: "dashboard overview" },
+  { name: "Command Center", path: "/hq", emoji: "🎯", keywords: "hq brief queue approve ghostwriter staff" },
+  { name: "Portfolio", path: "/portfolio", emoji: "🗂️", keywords: "projects kill review decisions activity" },
+  { name: "Quick Capture", path: "/capture", emoji: "📝", keywords: "note idea inbox" },
+  { name: "Tasks & Habits", path: "/personal-tasks", emoji: "✅", keywords: "todo checklist habit" },
+  { name: "Calendar", path: "/calendar", emoji: "📅", keywords: "events schedule" },
+  { name: "Finance", path: "/finance", emoji: "💰", keywords: "money budget expense" },
+  { name: "Knowledge", path: "/knowledge", emoji: "🧠", keywords: "notes learning library" },
+  { name: "Goals", path: "/goals", emoji: "🎯", keywords: "targets progress" },
+  { name: "Health", path: "/health", emoji: "💪", keywords: "habits mood sleep fitness" },
+  { name: "Career", path: "/career", emoji: "💼", keywords: "jobs skills resume cv" },
+  { name: "Social Life", path: "/social", emoji: "📱", keywords: "contacts friends content" },
+  { name: "Blogs", path: "/blogs", emoji: "🌍", keywords: "news reading articles" },
+  { name: "Workflow Manager", path: "/workflow-manager", emoji: "⚙️", keywords: "automation instagram queue" },
+  { name: "AI Assistant", path: "/ai-chat", emoji: "🤖", keywords: "chat gpt ask" },
+  { name: "Personal Agent", path: "/agent", emoji: "🧩", keywords: "agent tools actions ollama" },
+  { name: "Settings", path: "/settings", emoji: "⚙️", keywords: "preferences account" },
+  { name: "Profile", path: "/profile", emoji: "👤", keywords: "account me avatar" },
+];
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const navigate = useNavigate();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -27,12 +53,14 @@ const AppHeader: React.FC = () => {
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         inputRef.current?.focus();
+        setSearchOpen(true);
       }
     };
 
@@ -43,11 +71,53 @@ const AppHeader: React.FC = () => {
     };
   }, []);
 
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return SEARCH_PAGES;
+    return SEARCH_PAGES.filter(
+      p => p.name.toLowerCase().includes(q) || p.keywords.includes(q)
+    );
+  }, [query]);
+
+  const goTo = (path: string) => {
+    navigate(path);
+    setQuery("");
+    setSearchOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex(i => Math.min(i + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex(i => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (results[activeIndex]) goTo(results[activeIndex].path);
+    } else if (e.key === "Escape") {
+      setSearchOpen(false);
+      inputRef.current?.blur();
+    }
+  };
+
   const fetchUnreadCount = async () => {
     try {
       const response = await notificationService.getNotifications();
       if (response.success) {
-        const count = response.data.filter((n: any) => !n.isRead).length;
+        const count = response.data.filter((n: { isRead?: boolean }) => !n.isRead).length;
         setUnreadCount(count);
       }
     } catch (error) {
@@ -127,8 +197,8 @@ const AppHeader: React.FC = () => {
           </button>
 
           <div className="hidden lg:block">
-            <form>
-              <div className="relative">
+            <form onSubmit={e => e.preventDefault()}>
+              <div className="relative" ref={searchBoxRef}>
                 <span className="absolute -translate-y-1/2 pointer-events-none left-4 top-1/2">
                   <svg
                     className="fill-gray-500 dark:fill-gray-400"
@@ -149,18 +219,47 @@ const AppHeader: React.FC = () => {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Search or type command..."
-                  className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-14 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[430px]"
+                  value={query}
+                  onChange={e => { setQuery(e.target.value); setActiveIndex(0); setSearchOpen(true); }}
+                  onFocus={() => setSearchOpen(true)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Jump to a page..."
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-14 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-violet-300 focus:outline-hidden focus:ring-3 focus:ring-violet-500/10 dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-violet-800 xl:w-[430px]"
                 />
 
-                <button
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 shadow-sm dark:border-gray-700 dark:bg-white/5 dark:text-gray-400"
+                <span
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 shadow-sm dark:border-gray-700 dark:bg-white/5 dark:text-gray-400 pointer-events-none"
                   aria-label="Keyboard shortcut"
                 >
                   <kbd className="font-sans">Ctrl</kbd>
                   <span className="text-gray-400">+</span>
                   <kbd className="font-sans">K</kbd>
-                </button>
+                </span>
+
+                {/* Results dropdown */}
+                {searchOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-2 max-h-80 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl z-50 dark:bg-gray-900 dark:border-gray-800 py-1.5">
+                    {results.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-gray-400">No pages match "{query}"</p>
+                    ) : results.map((page, i) => (
+                      <button
+                        key={page.path}
+                        type="button"
+                        onMouseDown={e => { e.preventDefault(); goTo(page.path); }}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
+                          i === activeIndex
+                            ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
+                            : "text-gray-600 dark:text-gray-300"
+                        }`}
+                      >
+                        <span className="text-base">{page.emoji}</span>
+                        <span className="font-medium">{page.name}</span>
+                        <span className="ml-auto text-[11px] text-gray-400">{page.path}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </form>
           </div>
@@ -170,9 +269,8 @@ const AppHeader: React.FC = () => {
             } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className="flex items-center gap-2 2xsm:gap-3">
-            {/* <!-- Dark Mode Toggler --> */}
-            {/* <ThemeToggleButton /> */}
-            {/* <!-- Dark Mode Toggler --> */}
+            <BookToggleButton />
+            <ThemeToggleButton />
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}

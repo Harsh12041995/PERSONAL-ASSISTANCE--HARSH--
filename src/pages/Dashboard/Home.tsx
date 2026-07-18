@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { statsApi, IDashboardStats, captureApi, ICapture } from '../../services/personalApi';
+import {
+  statsApi, IDashboardStats, captureApi, ICapture,
+  calendarApi, ICalendarEvent, healthApi, IHealthDay,
+} from '../../services/personalApi';
 import { aiIntelligence } from '../../services/aiIntelligence';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,13 +71,31 @@ const MODULE_SHORTCUTS = [
   { name: 'Blogs', emoji: '🌍', path: '/blogs', desc: 'Stay aware globally', color: 'from-cyan-500 to-blue-500' },
   { name: 'Workflow', emoji: '⚙️', path: '/workflow-manager', desc: 'Run social workflow', color: 'from-emerald-500 to-teal-500' },
   { name: 'AI Chat', emoji: '🤖', path: '/ai-chat', desc: 'Ask your assistant', color: 'from-cyan-400 to-sky-400' },
+  { name: 'Personal Agent', emoji: '🧩', path: '/agent', desc: 'Agent that takes action', color: 'from-violet-500 to-indigo-500' },
+  { name: 'Calendar', emoji: '📅', path: '/calendar', desc: 'Plan your day', color: 'from-sky-400 to-blue-500' },
 ];
 
-const UPCOMING_EVENTS = [
-  { time: '10:00 AM', title: 'Team standup call', tag: 'Work', tagColor: 'bg-blue-100 text-blue-700' },
-  { time: '01:30 PM', title: 'Lunch with Priya', tag: 'Personal', tagColor: 'bg-pink-100 text-pink-700' },
-  { time: '04:00 PM', title: 'React course — Chapter 12', tag: 'Learning', tagColor: 'bg-violet-100 text-violet-700' },
-  { time: '07:00 PM', title: 'Gym session', tag: 'Health', tagColor: 'bg-emerald-100 text-emerald-700' },
+// Calendar category → tag color (matches Calendar page categories)
+const EVENT_TAG_COLOR: Record<string, string> = {
+  Work: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  Personal: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300',
+  Learning: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
+  Health: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+};
+const DEFAULT_TAG_COLOR = 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const eventTime = (evt: ICalendarEvent) =>
+  evt.allDay
+    ? 'All day'
+    : new Date(evt.start).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+const MOODS = [
+  { emoji: '😄', label: 'Great', color: 'hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/40' },
+  { emoji: '😊', label: 'Good', color: 'hover:bg-green-50 hover:border-green-300 dark:hover:bg-green-950/40' },
+  { emoji: '😐', label: 'Okay', color: 'hover:bg-yellow-50 hover:border-yellow-300 dark:hover:bg-yellow-950/40' },
+  { emoji: '😔', label: 'Low', color: 'hover:bg-orange-50 hover:border-orange-300 dark:hover:bg-orange-950/40' },
+  { emoji: '😩', label: 'Stressed', color: 'hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-950/40' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -88,6 +110,9 @@ export default function Home() {
   const [captureSubmitted, setCaptureSubmitted] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
   const [loadingInsights, setLoadingInsights] = useState(true);
+  const [todayEvents, setTodayEvents] = useState<ICalendarEvent[]>([]);
+  const [healthDay, setHealthDay] = useState<Partial<IHealthDay> | null>(null);
+  const [savingMood, setSavingMood] = useState(false);
 
   // Live clock
   useEffect(() => {
@@ -95,21 +120,38 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
-  // Load real stats + recent captures
-  const loadData = useCallback(async () => {
-    try {
-      const [s, caps] = await Promise.all([statsApi.get(), captureApi.getAll()]);
-      setStats(s);
-      setRecentCaptures(caps.slice(0, 5));
+  // Load each widget independently — one failure must never blank the others
+  // (previously a single Promise.all meant a stats 404 also wiped captures and
+  //  left the insights spinner stuck forever).
+  const loadData = useCallback(() => {
+    statsApi.get()
+      .then(setStats)
+      .catch(() => { setStats(null); toast.error("Couldn't load your stats."); });
 
-      // Load AI insights separately so they don't block basic stats
-      setLoadingInsights(true);
-      aiIntelligence.getDashboardInsights()
-        .then(res => setInsights(res))
-        .catch(() => setInsights([]))
-        .finally(() => setLoadingInsights(false));
+    captureApi.getAll()
+      .then(caps => setRecentCaptures(caps.slice(0, 5)))
+      .catch(() => setRecentCaptures([]));
 
-    } catch { /* silently fallback */ }
+    setLoadingInsights(true);
+    aiIntelligence.getDashboardInsights()
+      .then(res => setInsights(res))
+      .catch(() => setInsights([]))
+      .finally(() => setLoadingInsights(false));
+
+    // Non-critical extras — load independently so a failure doesn't block stats
+    calendarApi.getAll()
+      .then((events: ICalendarEvent[]) => {
+        const today = todayISO();
+        const todays = events
+          .filter(e => e.start?.slice(0, 10) === today)
+          .sort((a, b) => a.start.localeCompare(b.start));
+        setTodayEvents(todays.slice(0, 5));
+      })
+      .catch(() => setTodayEvents([]));
+
+    healthApi.getDay(todayISO())
+      .then((day: IHealthDay) => setHealthDay(day || null))
+      .catch(() => setHealthDay(null));
   }, []);
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -130,13 +172,37 @@ export default function Home() {
       setCaptureSubmitted(true);
       loadData(); // refresh stats
       setTimeout(() => { setCaptureText(''); setCaptureSubmitted(false); }, 2000);
-    } catch { setCaptureSubmitted(true); setTimeout(() => { setCaptureText(''); setCaptureSubmitted(false); }, 2000); }
+    } catch {
+      toast.error("Couldn't save your capture — please try again.");
+    }
   };
+
+  // Mood check-in → persists to the same Health record as the Health page
+  const handleMoodSelect = async (label: string) => {
+    if (savingMood) return;
+    const previous = healthDay;
+    setSavingMood(true);
+    setHealthDay(d => ({ ...(d || {}), mood: label }));
+    try {
+      await healthApi.saveDay(todayISO(), { ...(previous || {}), date: todayISO(), mood: label });
+      toast.success(`Mood logged: ${label}`);
+    } catch {
+      setHealthDay(previous);
+      toast.error("Couldn't log your mood — please try again.");
+    } finally {
+      setSavingMood(false);
+    }
+  };
+
+  // Real "today's focus" progress from task stats
+  const taskProgress = stats && stats.tasksToday > 0
+    ? Math.round((stats.tasksDone / stats.tasksToday) * 100)
+    : 0;
 
   return (
     <div className="space-y-6 pb-8">
       {/* ── Hero Greeting Banner ───────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 p-6 md:p-8 text-white shadow-xl shadow-violet-200">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 p-6 md:p-8 text-white shadow-xl shadow-violet-200 dark:shadow-none">
         {/* Background orbs */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
         <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-indigo-400/20 rounded-full translate-y-1/2 blur-xl" />
@@ -148,17 +214,19 @@ export default function Home() {
             <p className="text-4xl font-bold mt-2 tabular-nums tracking-tight">{time}</p>
           </div>
 
-          {/* Focus of the day */}
+          {/* Today's real task progress */}
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 md:min-w-[280px]">
-            <p className="text-xs text-violet-200 font-semibold uppercase tracking-wider mb-1">🎯 Today's #1 Focus</p>
+            <p className="text-xs text-violet-200 font-semibold uppercase tracking-wider mb-1">🎯 Today's Progress</p>
             <p className="text-white font-semibold text-sm leading-snug">
-              Complete the personal assistant app — Phase 1 implementation
+              {stats && stats.tasksToday > 0
+                ? `${stats.tasksDone} of ${stats.tasksToday} tasks done — ${taskProgress === 100 ? 'all clear! 🎉' : 'keep going!'}`
+                : 'No tasks planned yet — add your first one'}
             </p>
             <div className="mt-3 flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full w-2/3 bg-white rounded-full" />
+                <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${taskProgress}%` }} />
               </div>
-              <span className="text-xs text-violet-200">67%</span>
+              <span className="text-xs text-violet-200">{taskProgress}%</span>
             </div>
           </div>
         </div>
@@ -181,7 +249,7 @@ export default function Home() {
       </div>
 
       {/* ── Smart Insights (AI) ───────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-indigo-50/50 to-violet-50/50 rounded-2xl border border-violet-100 p-4 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-50/50 to-violet-50/50 rounded-2xl border border-violet-100 p-4 relative overflow-hidden dark:from-indigo-950/30 dark:to-violet-950/30 dark:border-violet-900/50">
         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
           <svg className="w-24 h-24 text-violet-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.85 8.65L22 9.25L16.5 13.92L18.18 21L12 17.27L5.82 21L7.5 13.92L2 9.25L9.15 8.65L12 2Z" /></svg>
         </div>
@@ -193,9 +261,9 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {insights.length > 0 ? insights.slice(0, 3).map((insight, i) => (
-            <div key={i} className="flex gap-3 bg-white/60 hover:bg-white/90 p-3 rounded-xl border border-violet-100/50 transition-all cursor-default">
+            <div key={i} className="flex gap-3 bg-white/60 hover:bg-white/90 p-3 rounded-xl border border-violet-100/50 transition-all cursor-default dark:bg-white/5 dark:hover:bg-white/10 dark:border-violet-900/40">
               <span className="text-lg flex-shrink-0">{['🚀', '💡', '🌟'][i] || '✨'}</span>
-              <p className="text-xs text-indigo-900/80 leading-relaxed font-medium">
+              <p className="text-xs text-indigo-900/80 leading-relaxed font-medium dark:text-indigo-200/90">
                 {insight.replace(/^[0-9.]\s*/, '')}
               </p>
             </div>
@@ -208,7 +276,7 @@ export default function Home() {
       </div>
 
       {/* ── Quick Capture Bar ──────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-900 dark:border-gray-800 p-4">
         <form onSubmit={handleQuickCapture} className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 text-lg">📝</div>
           <input
@@ -216,7 +284,7 @@ export default function Home() {
             value={captureText}
             onChange={e => setCaptureText(e.target.value)}
             placeholder="Capture a thought, idea, task, or anything on your mind..."
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition-all"
+            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition-all dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:placeholder-gray-500"
           />
           <div className="flex items-center gap-2">
             <button
@@ -238,11 +306,11 @@ export default function Home() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {MODULE_SHORTCUTS.map(mod => (
             <Link key={mod.name} to={mod.path}>
-              <div className="group bg-white hover:shadow-md rounded-xl border border-gray-100 p-4 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
+              <div className="group bg-white hover:shadow-md rounded-xl border border-gray-100 p-4 dark:bg-gray-900 dark:border-gray-800 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mod.color} flex items-center justify-center text-xl mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
                   {mod.emoji}
                 </div>
-                <p className="text-sm font-semibold text-gray-800">{mod.name}</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{mod.name}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{mod.desc}</p>
               </div>
             </Link>
@@ -254,47 +322,54 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── Today's Schedule ────────────────────────────────────────── */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-gray-50">
+        <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-900 dark:border-gray-800 overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-gray-50 dark:border-gray-800">
             <div className="flex items-center gap-2">
               <span className="text-lg">📅</span>
-              <h2 className="text-sm font-bold text-gray-800">Today's Schedule</h2>
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Today's Schedule</h2>
             </div>
             <Link to="/calendar" className="text-xs text-violet-600 hover:text-violet-700 font-medium">View all →</Link>
           </div>
           <div className="p-4 space-y-3">
-            {UPCOMING_EVENTS.map((evt, i) => (
-              <div key={i} className="flex items-start gap-3 group">
-                <div className="text-[11px] font-mono text-gray-400 pt-0.5 w-16 flex-shrink-0">{evt.time}</div>
+            {todayEvents.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <p className="text-2xl mb-1">🗓️</p>
+                <p className="text-xs">Nothing scheduled for today.</p>
+              </div>
+            ) : todayEvents.map(evt => (
+              <div key={evt._id} className="flex items-start gap-3 group">
+                <div className="text-[11px] font-mono text-gray-400 pt-0.5 w-16 flex-shrink-0">{eventTime(evt)}</div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-violet-700 transition-colors">{evt.title}</p>
-                  <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 ${evt.tagColor}`}>
-                    {evt.tag}
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">{evt.title}</p>
+                  <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 ${EVENT_TAG_COLOR[evt.calendar] || DEFAULT_TAG_COLOR}`}>
+                    {evt.calendar || 'Event'}
                   </span>
                 </div>
               </div>
             ))}
-            <button className="w-full mt-2 py-2 rounded-xl text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors">
-              + Add event
-            </button>
+            <Link to="/calendar" className="block">
+              <button className="w-full mt-2 py-2 rounded-xl text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20 transition-colors">
+                + Add event
+              </button>
+            </Link>
           </div>
         </div>
 
         {/* ── Habit Tracker ───────────────────────────────────────────── */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-gray-50">
+        <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-900 dark:border-gray-800 overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-gray-50 dark:border-gray-800">
             <div className="flex items-center gap-2">
               <span className="text-lg">💪</span>
-              <h2 className="text-sm font-bold text-gray-800">Today's Habits</h2>
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Today's Habits</h2>
             </div>
             <Link to="/health" className="text-xs text-violet-600 hover:text-violet-700 font-medium">All habits →</Link>
           </div>
 
           {/* Progress ring — driven by real habit data from HealthPage */}
-          <div className="flex items-center gap-4 px-5 py-4 border-b border-gray-50">
+          <div className="flex items-center gap-4 px-5 py-4 border-b border-gray-50 dark:border-gray-800">
             <div className="relative w-14 h-14">
               <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                <circle cx="28" cy="28" r="22" fill="none" stroke="#f3f4f6" strokeWidth="6" />
+                <circle cx="28" cy="28" r="22" fill="none" strokeWidth="6" className="stroke-gray-100 dark:stroke-gray-800" />
                 <circle
                   cx="28" cy="28" r="22" fill="none"
                   stroke="#8b5cf6" strokeWidth="6"
@@ -309,24 +384,24 @@ export default function Home() {
               </span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800">{stats?.habitStreak ?? 0}/6 done</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{stats?.habitStreak ?? 0}/6 done</p>
               <p className="text-xs text-gray-400">Keep it up! 🔥</p>
             </div>
           </div>
 
           <div className="p-5 flex items-center justify-center">
-            <Link to="/health" className="text-sm font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 px-4 py-2 rounded-xl transition-colors">
+            <Link to="/health" className="text-sm font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-200 px-4 py-2 rounded-xl transition-colors">
               💪 Log Today's Habits →
             </Link>
           </div>
         </div>
 
         {/* ── Recent Captures ─────────────────────────────────────────── */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-gray-50">
+        <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-900 dark:border-gray-800 overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-gray-50 dark:border-gray-800">
             <div className="flex items-center gap-2">
               <span className="text-lg">📝</span>
-              <h2 className="text-sm font-bold text-gray-800">Recent Captures</h2>
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Recent Captures</h2>
             </div>
             <Link to="/capture" className="text-xs text-violet-600 hover:text-violet-700 font-medium">All captures →</Link>
           </div>
@@ -334,19 +409,19 @@ export default function Home() {
             {recentCaptures.length === 0 ? (
               <div className="text-center py-6 text-gray-400"><p className="text-2xl mb-1">📝</p><p className="text-xs">No captures yet. Add one above!</p></div>
             ) : recentCaptures.map(cap => (
-              <div key={cap._id} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group">
+              <div key={cap._id} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors cursor-pointer group">
                 <span className="text-lg flex-shrink-0">{cap.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CAPTURE_COLOR[cap.type] || 'bg-gray-100 text-gray-600'}`}>{cap.type}</span>
                   </div>
-                  <p className="text-xs text-gray-700 leading-snug line-clamp-2 group-hover:text-gray-900">{cap.text}</p>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-snug line-clamp-2 group-hover:text-gray-900 dark:group-hover:text-gray-100">{cap.text}</p>
                   <p className="text-[10px] text-gray-400 mt-1">{relTime(cap.createdAt)}</p>
                 </div>
               </div>
             ))}
             <Link to="/capture">
-              <button className="w-full mt-1 py-2 rounded-xl text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors">
+              <button className="w-full mt-1 py-2 rounded-xl text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20 transition-colors">
                 + New capture
               </button>
             </Link>
@@ -355,57 +430,33 @@ export default function Home() {
       </div>
 
       {/* ── Mood Check-in ─────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-900 dark:border-gray-800 p-5">
         <div className="flex items-center gap-2 mb-4">
           <span className="text-lg">🌟</span>
-          <h2 className="text-sm font-bold text-gray-800">How are you feeling today?</h2>
-          <span className="ml-auto text-xs text-gray-400">Tap to log your mood</span>
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">How are you feeling today?</h2>
+          <span className="ml-auto text-xs text-gray-400">
+            {healthDay?.mood ? `Logged: ${healthDay.mood}` : 'Tap to log your mood'}
+          </span>
         </div>
         <div className="flex gap-3 flex-wrap">
-          {[
-            { emoji: '😄', label: 'Great', color: 'hover:bg-emerald-50 hover:border-emerald-300' },
-            { emoji: '😊', label: 'Good', color: 'hover:bg-green-50 hover:border-green-300' },
-            { emoji: '😐', label: 'Okay', color: 'hover:bg-yellow-50 hover:border-yellow-300' },
-            { emoji: '😔', label: 'Low', color: 'hover:bg-orange-50 hover:border-orange-300' },
-            { emoji: '😩', label: 'Stressed', color: 'hover:bg-red-50 hover:border-red-300' },
-          ].map(mood => (
-            <button
-              key={mood.label}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 transition-all duration-200 hover:scale-105 ${mood.color}`}
-            >
-              <span className="text-xl">{mood.emoji}</span>
-              {mood.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Life Areas Overview ────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Life Areas Status</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { area: 'Career', emoji: '💼', score: 72, color: 'bg-orange-500', link: '/career' },
-            { area: 'Health', emoji: '💪', score: 60, color: 'bg-rose-500', link: '/health' },
-            { area: 'Finance', emoji: '💰', score: 55, color: 'bg-green-500', link: '/finance' },
-            { area: 'Learning', emoji: '🧠', score: 80, color: 'bg-indigo-500', link: '/knowledge' },
-            { area: 'Social', emoji: '📱', score: 65, color: 'bg-fuchsia-500', link: '/social' },
-            { area: 'Goals', emoji: '🎯', score: 70, color: 'bg-pink-500', link: '/goals' },
-          ].map(area => (
-            <Link key={area.area} to={area.link}>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer group">
-                <div className="text-2xl mb-2">{area.emoji}</div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">{area.area}</p>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${area.color} rounded-full transition-all duration-700`}
-                    style={{ width: `${area.score}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1">{area.score}% score</p>
-              </div>
-            </Link>
-          ))}
+          {MOODS.map(mood => {
+            const selected = healthDay?.mood === mood.label;
+            return (
+              <button
+                key={mood.label}
+                onClick={() => handleMoodSelect(mood.label)}
+                disabled={savingMood}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 hover:scale-105 disabled:opacity-60 ${
+                  selected
+                    ? 'border-violet-400 bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-600'
+                    : `border-gray-200 text-gray-700 dark:border-gray-700 dark:text-gray-300 ${mood.color}`
+                }`}
+              >
+                <span className="text-xl">{mood.emoji}</span>
+                {mood.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

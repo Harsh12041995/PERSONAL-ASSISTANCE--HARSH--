@@ -65,6 +65,11 @@ export default function AiChatPage() {
       setError('');
       try {
         const res = await chatApiService.getMessages(conversationId, userId, 1, 100);
+        // getMessages returns { success:false } on error instead of throwing.
+        if (res && res.success === false) {
+          setError('Failed to load chat history.');
+          return;
+        }
         const loaded = [...(res?.data?.messages || [])].sort(
           (a: Message, b: Message) => +new Date(a.createdAt) - +new Date(b.createdAt)
         );
@@ -119,9 +124,16 @@ export default function AiChatPage() {
 
     try {
       const res = await chatApiService.sendMessage(clean, userId, conversationId);
-      const userMsg = res?.data?.user_message as Message;
-      const botMsg = res?.data?.bot_message as Message;
-
+      // The service layer swallows HTTP errors into { success:false } rather
+      // than throwing — so guard on success + payload shape before rendering,
+      // otherwise we'd push blank `undefined` bubbles into the thread.
+      const userMsg = res?.data?.user_message as Message | undefined;
+      const botMsg = res?.data?.bot_message as Message | undefined;
+      if (!res?.success || !userMsg || !botMsg) {
+        setMessages((prev) => prev.filter((m) => m._id !== optimisticUser._id));
+        setError(res?.error || 'Could not send message. Please try again.');
+        return;
+      }
       setMessages((prev) => {
         const withoutTemp = prev.filter((m) => m._id !== optimisticUser._id);
         return [...withoutTemp, userMsg, botMsg];

@@ -44,6 +44,7 @@ export default function GoalsPage() {
     const updateProgress = async (id: string, progress: number) => {
         try {
             const updated = await goalApi.update(id, { progress });
+            if (!updated) return;
             setGoals(prev => prev.map(g => g._id === id ? updated : g));
             if (selected?._id === id) setSelected(updated);
         } catch { setError('Failed to update progress.'); }
@@ -54,6 +55,7 @@ export default function GoalsPage() {
         const auto = Math.round((newMs.filter(m => m.done).length / newMs.length) * 100);
         try {
             const updated = await goalApi.update(goal._id, { milestones: newMs, progress: auto });
+            if (!updated) return;
             setGoals(prev => prev.map(g => g._id === goal._id ? updated : g));
             if (selected?._id === goal._id) setSelected(updated);
         } catch { setError('Failed to update milestone.'); }

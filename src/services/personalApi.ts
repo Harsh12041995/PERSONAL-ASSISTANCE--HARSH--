@@ -315,9 +315,9 @@ export const workflowApi = {
     updateQueueItem: (id: string, d: Partial<IWorkflowQueueItem>) => api.put(`/workflow/queue/${id}`, d).then(data) as Promise<IWorkflowQueueItem>,
     deleteQueueItem: (id: string) => api.delete(`/workflow/queue/${id}`).then(data),
 
-    getDMActivity: () => api.get('/workflow/dm').then(data) as Promise<IWorkflowDMActivity[]>,
-    createDMActivity: (d: Omit<IWorkflowDMActivity, '_id'>) => api.post('/workflow/dm', d).then(data) as Promise<IWorkflowDMActivity>,
-    updateDMActivity: (id: string, d: Partial<IWorkflowDMActivity>) => api.put(`/workflow/dm/${id}`, d).then(data) as Promise<IWorkflowDMActivity>,
+    getDMActivity: () => api.get('/workflow/dm-activity').then(data) as Promise<IWorkflowDMActivity[]>,
+    createDMActivity: (d: Omit<IWorkflowDMActivity, '_id'>) => api.post('/workflow/dm-activity', d).then(data) as Promise<IWorkflowDMActivity>,
+    updateDMActivity: (id: string, d: Partial<IWorkflowDMActivity>) => api.put(`/workflow/dm-activity/${id}`, d).then(data) as Promise<IWorkflowDMActivity>,
 };
 
 export const automationApi = {
@@ -333,5 +333,5 @@ export interface IDashboardStats {
     goalsOnTrack: number; goalsTotal: number; habitStreak: number;
 }
 export const statsApi = {
-    get: () => api.get('/stats').then(data) as Promise<IDashboardStats>,
+    get: () => api.get('/dashboard/stats').then(data) as Promise<IDashboardStats>,
 };

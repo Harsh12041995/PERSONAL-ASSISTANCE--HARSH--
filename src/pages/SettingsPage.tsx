@@ -115,9 +115,10 @@ export default function SettingsPage() {
         try {
             const token = localStorage.getItem('accessToken') || '';
             const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-            const res = await fetch(`${baseUrl}/personal/export`, {
+            const res = await fetch(`${baseUrl}/personal/export-all`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (!res.ok) throw new Error(`Export failed (${res.status})`);
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -390,7 +391,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                         <div>
                             <p className="text-sm font-semibold text-gray-800">Export All Data</p>
-                            <p className="text-xs text-gray-400">Downloads all 17 collections as JSON from MongoDB Atlas</p>
+                            <p className="text-xs text-gray-400">Downloads all your data as a single JSON file</p>
                         </div>
                         <button onClick={exportData} disabled={exporting}
                             className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50">
