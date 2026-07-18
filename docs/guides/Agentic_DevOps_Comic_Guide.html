@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Agentic Adventure — a comic guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#14121f; --paper:#fff8ec; --line:#14121f;
+    --pink:#ff5d8f; --blue:#3d7bff; --yellow:#ffd23f; --green:#2ec4a6; --purple:#8b5cf6; --orange:#ff8a3d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Comic Neue",-apple-system,BlinkMacSystemFont,sans-serif;
+    color:var(--ink); background:var(--paper);
+    background-image:radial-gradient(var(--ink) 0.6px, transparent 0.6px);
+    background-size:14px 14px; background-attachment:fixed;
+  }
+  .wrap{max-width:780px;margin:0 auto;padding:18px 14px 70px}
+  h1,h2,h3,.bangers{font-family:"Bangers",Impact,sans-serif;letter-spacing:.02em;font-weight:400;line-height:1}
+  .hero{border:4px solid var(--line);border-radius:18px;background:linear-gradient(135deg,var(--yellow),var(--orange));
+    padding:22px;box-shadow:8px 8px 0 var(--line);text-align:center;margin-bottom:10px}
+  .hero h1{font-size:42px;color:var(--ink);text-shadow:3px 3px 0 #fff}
+  .hero p{font-size:17px;font-weight:700;margin:8px 0 0}
+  .kicker{display:inline-block;background:var(--ink);color:var(--yellow);font-family:"Bangers";font-size:15px;
+    padding:4px 12px;border-radius:999px;letter-spacing:.08em;transform:rotate(-2deg)}
+  .chapter{margin:30px 0 8px}
+  .chapter h2{font-size:30px;display:inline-block;background:var(--purple);color:#fff;padding:6px 16px;border:3px solid var(--line);
+    border-radius:12px;box-shadow:5px 5px 0 var(--line);transform:rotate(-1deg)}
+  .panel{border:4px solid var(--line);border-radius:16px;background:#fff;padding:16px;margin:14px 0;
+    box-shadow:6px 6px 0 var(--line)}
+  .panel.c-pink{background:#fff0f5}.panel.c-blue{background:#eef4ff}.panel.c-green{background:#eafff9}
+  .panel.c-yellow{background:#fffbe8}.panel.c-purple{background:#f5f0ff}
+  .panel h3{font-size:22px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+  .panel p{font-size:16px;line-height:1.5;margin:8px 0}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .bubble{position:relative;background:#fff;border:3px solid var(--line);border-radius:16px;padding:12px 14px;
+    font-weight:700;font-size:15px;box-shadow:3px 3px 0 var(--line);flex:1;min-width:200px}
+  .bubble:before{content:"";position:absolute;left:-14px;top:22px;border:8px solid transparent;border-right-color:var(--line)}
+  .bubble:after{content:"";position:absolute;left:-9px;top:23px;border:7px solid transparent;border-right-color:#fff}
+  .who{font-family:"Bangers";font-size:14px;letter-spacing:.06em;color:var(--blue);display:block;margin-bottom:2px}
+  .who.ada{color:var(--pink)}
+  .ava{width:64px;height:64px;flex:0 0 auto}
+  .tag{display:inline-block;font-family:"Bangers";font-size:13px;padding:3px 10px;border:2px solid var(--line);
+    border-radius:8px;margin:3px 4px 3px 0;background:var(--yellow)}
+  .tag.b{background:var(--blue);color:#fff}.tag.g{background:var(--green);color:#fff}.tag.p{background:var(--pink);color:#fff}
+  .steps{counter-reset:s;padding:0;margin:8px 0;list-style:none}
+  .steps li{counter-increment:s;position:relative;padding:8px 8px 8px 44px;margin:8px 0;background:#fff;
+    border:3px solid var(--line);border-radius:12px;font-weight:700;font-size:15px;box-shadow:3px 3px 0 var(--line)}
+  .steps li:before{content:counter(s);position:absolute;left:8px;top:50%;transform:translateY(-50%);
+    width:26px;height:26px;background:var(--pink);color:#fff;border:2px solid var(--line);border-radius:50%;
+    display:grid;place-items:center;font-family:"Bangers"}
+  .loop{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin:10px 0}
+  .loop .node{background:var(--blue);color:#fff;border:3px solid var(--line);border-radius:12px;padding:8px 12px;
+    font-family:"Bangers";font-size:16px;box-shadow:3px 3px 0 var(--line)}
+  .loop .arr{font-family:"Bangers";font-size:22px;color:var(--ink)}
+  .defbox{border-left:8px solid var(--green);background:#fff;border:3px solid var(--line);border-left-width:8px;
+    border-radius:10px;padding:10px 12px;margin:8px 0}
+  .defbox b{font-family:"Bangers";font-size:17px;letter-spacing:.03em}
+  .cheat{background:var(--ink);color:var(--paper);border-radius:16px;padding:18px;border:4px solid var(--line);box-shadow:6px 6px 0 var(--purple)}
+  .cheat h2{background:var(--yellow);color:var(--ink)}
+  .cheat li{margin:9px 0;font-size:15px;font-weight:700}
+  .map{width:100%;height:auto;border:3px solid var(--line);border-radius:12px;background:#fff}
+  .foot{text-align:center;font-weight:700;color:#000a;margin-top:26px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="kicker">Field Guide · Issue #1</span>
+    <h1>The Agentic Adventure</h1>
+    <p>How your app ships to the world &amp; how your AI agent actually thinks — explained in panels.</p>
+  </div>
+
+  <div class="panel c-yellow">
+    <div class="row">
+      <!-- Ada the robot mentor -->
+      <svg class="ava" viewBox="0 0 64 64"><g stroke="#14121f" stroke-width="3"><rect x="14" y="18" width="36" height="30" rx="8" fill="#ff5d8f"/><circle cx="24" cy="33" r="4.5" fill="#fff"/><circle cx="40" cy="33" r="4.5" fill="#fff"/><line x1="32" y1="8" x2="32" y2="18"/><circle cx="32" cy="6" r="3" fill="#ffd23f"/><rect x="22" y="42" width="20" height="4" rx="2" fill="#14121f"/></g></svg>
+      <div class="bubble"><span class="who ada">ADA · your guide</span>Hi! I'm Ada. I'll walk you through deploying apps and building AI agents — no prior DevOps required. By the end you'll <i>explain</i> these to anyone.</div>
+    </div>
+  </div>
+
+  <!-- CH1 -->
+  <div class="chapter"><h2>Ch.1 — A Tale of Two Tiers</h2></div>
+  <div class="panel c-blue">
+    <h3>🌍 The front of the shop</h3>
+    <p>Your <b>frontend</b> is the React app. When you run <span class="tag b">yarn build</span> it becomes plain HTML/JS/CSS — just files. Files are easy: a <b>CDN</b> copies them to servers worldwide so they load fast. That's <b>Netlify's</b> job.</p>
+  </div>
+  <div class="panel c-pink">
+    <h3>🧠 The workshop in the back</h3>
+    <p>Your <b>agent</b> is different. It runs a real language model (<b>Ollama</b>) that stays loaded in memory and thinks for several seconds. That needs a long-running machine — your computer or a server — wrapped in <b>Docker</b>.</p>
+    <div class="row">
+      <div class="bubble"><span class="who">YOU</span>So why can't Netlify just run the agent too?</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="bubble"><span class="who ada">ADA</span>Because Netlify runs <b>serverless functions</b> — tiny code that wakes up, runs ~10 seconds, and vanishes. No room to keep a big model loaded. Perfect for a quick API call, wrong for a thinking agent.</div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>🗺️ The whole map</h3>
+    <svg class="map" viewBox="0 0 700 230">
+      <g font-family="Comic Neue" font-weight="700" font-size="13" stroke="#14121f" stroke-width="2.5">
+        <rect x="20" y="95" width="120" height="46" rx="10" fill="#ffd23f"/><text x="80" y="123" text-anchor="middle" stroke="none">📱 Browser</text>
+        <rect x="200" y="95" width="150" height="46" rx="10" fill="#3d7bff"/><text x="275" y="116" text-anchor="middle" fill="#fff" stroke="none">Netlify (CDN)</text><text x="275" y="132" text-anchor="middle" fill="#fff" stroke="none" font-size="11">React frontend</text>
+        <rect x="430" y="40" width="250" height="150" rx="14" fill="#fff0f5"/><text x="555" y="62" text-anchor="middle" stroke="none" font-family="Bangers" font-size="16">AGENT TIER · Docker</text>
+        <rect x="450" y="78" width="100" height="40" rx="8" fill="#2ec4a6"/><text x="500" y="103" text-anchor="middle" fill="#fff" stroke="none" font-size="12">Express API</text>
+        <rect x="565" y="78" width="95" height="40" rx="8" fill="#8b5cf6"/><text x="612" y="103" text-anchor="middle" fill="#fff" stroke="none" font-size="12">Ollama LLM</text>
+        <rect x="450" y="130" width="210" height="40" rx="8" fill="#ff8a3d"/><text x="555" y="155" text-anchor="middle" fill="#fff" stroke="none" font-size="12">MongoDB (data + vectors)</text>
+        <line x1="140" y1="118" x2="198" y2="118" marker-end="url(#a)"/>
+        <line x1="350" y1="118" x2="448" y2="108" marker-end="url(#a)"/>
+        <defs><marker id="a" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#14121f"/></marker></defs>
+      </g>
+    </svg>
+    <p style="margin-top:6px"><b>Docker</b> is the shipping box 📦 around the back tier: it packs the API, the model, and the database so they run <i>identically</i> on your laptop and your server. One command: <span class="tag g">docker compose up</span>.</p>
+  </div>
+
+  <!-- CH2 -->
+  <div class="chapter"><h2>Ch.2 — Shipping It (DevOps decoded)</h2></div>
+  <div class="panel c-green">
+    <h3>🔁 The magic words: CI / CD</h3>
+    <p><b>CI</b> = every time you change code, a robot builds it and runs the tests. <b>CD</b> = if the tests pass, it goes live automatically. Together: you push code, and minutes later it's on the internet — safely.</p>
+    <div class="loop">
+      <span class="node" style="background:#2ec4a6">git push</span><span class="arr">→</span>
+      <span class="node" style="background:#3d7bff">CI: build + test</span><span class="arr">→</span>
+      <span class="node" style="background:#8b5cf6">Preview URL</span><span class="arr">→</span>
+      <span class="node" style="background:#ff5d8f">Live!</span>
+    </div>
+  </div>
+  <div class="panel c-yellow">
+    <h3>🚀 Your standard deploy flow</h3>
+    <ol class="steps">
+      <li>Connect the GitHub repo to Netlify (once).</li>
+      <li>Open a Pull Request → Netlify gives you a <b>preview URL</b> to check it.</li>
+      <li>CI must go green (lint + tests) before merge.</li>
+      <li>Merge to <b>main</b> → it auto-deploys to production. 🎉</li>
+      <li>Something broke? One-click <b>rollback</b> to the last good version.</li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h3>🛡️ Two more characters you'll meet</h3>
+    <div class="defbox"><b>Reverse proxy</b> — the bouncer at the door (Nginx/Caddy). It adds <b>HTTPS</b> 🔒 and sends visitors to the right room.</div>
+    <div class="defbox"><b>Environment variables</b> — secret sticky-notes (passwords, DB links) handed to the app at runtime, never written into the code.</div>
+  </div>
+
+  <!-- CH3 -->
+  <div class="chapter"><h2>Ch.3 — How an Agent Thinks</h2></div>
+  <div class="panel c-purple">
+    <h3>🤖 Not a chatbot — a doer</h3>
+    <p>A normal chatbot just talks. An <b>agent</b> can <i>act</i>: it has <b>tools</b> (like "create task" or "log expense") and decides when to use them. The decision cycle is the <b>agent loop</b>:</p>
+    <div class="loop">
+      <span class="node">🧠 Think</span><span class="arr">→</span>
+      <span class="node" style="background:#ff8a3d">🔧 Use a tool</span><span class="arr">→</span>
+      <span class="node" style="background:#2ec4a6">👀 See result</span><span class="arr">→</span>
+      <span class="node" style="background:#8b5cf6">↻ Repeat / Answer</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="bubble"><span class="who">YOU</span>"Log ₹400 lunch and remind me to call Rohan."</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="bubble"><span class="who ada">ADA</span>I split that into two actions → call <span class="tag p">log_expense</span> and <span class="tag p">create_task</span> → check both worked → reply "Done!". That's the loop in real life.</div>
+    </div>
+  </div>
+  <div class="panel c-blue">
+    <h3>🧰 Why tools are the safe way</h3>
+    <p>The model never touches your database directly. It can only ask to run a <b>tool</b>, and each tool <b>validates</b> the request and checks it's really you. That's how you keep an AI powerful <i>and</i> safe — and it's why adding a new ability = just writing a new tool.</p>
+  </div>
+
+  <!-- CH4 -->
+  <div class="chapter"><h2>Ch.4 — Memory &amp; RAG</h2></div>
+  <div class="panel c-green">
+    <h3>📚 The meaning-map (embeddings)</h3>
+    <p>Computers don't read words — they read numbers. An <b>embedding</b> turns a sentence into a point on a giant "map of meaning". Sentences that <i>mean</i> similar things land close together, even with different words.</p>
+    <svg class="map" viewBox="0 0 700 180">
+      <g font-family="Comic Neue" font-size="12" font-weight="700">
+        <rect x="0" y="0" width="700" height="180" fill="#eafff9"/>
+        <circle cx="160" cy="60" r="7" fill="#3d7bff"/><text x="172" y="64">"buy groceries"</text>
+        <circle cx="200" cy="80" r="7" fill="#3d7bff"/><text x="212" y="84">"get milk &amp; eggs"</text>
+        <circle cx="520" cy="130" r="7" fill="#ff5d8f"/><text x="350" y="134">"book a flight to Goa"</text>
+        <text x="20" y="160" font-family="Bangers" font-size="14" fill="#2ec4a6">similar meaning → close together · different → far apart</text>
+      </g>
+    </svg>
+  </div>
+  <div class="panel c-pink">
+    <h3>🔎 RAG = look it up first</h3>
+    <p><b>RAG</b> (Retrieval-Augmented Generation) means: before answering about <i>your</i> life, the agent searches your real notes/goals/captures (using the meaning-map), grabs the closest ones, and answers from <b>those</b>. Result: grounded answers with sources — not made-up ones.</p>
+    <div class="loop">
+      <span class="node">❓ Your question</span><span class="arr">→</span>
+      <span class="node" style="background:#2ec4a6">🔎 Vector search</span><span class="arr">→</span>
+      <span class="node" style="background:#ff8a3d">📄 Your real notes</span><span class="arr">→</span>
+      <span class="node" style="background:#8b5cf6">✅ Grounded answer</span>
+    </div>
+    <p style="margin-top:8px">In your project these live in MongoDB's <span class="tag">embeddings</span> collection — open <b>Compass</b> and you can literally see them. Full control. 🔬</p>
+  </div>
+
+  <!-- CH5 -->
+  <div class="chapter"><h2>Ch.5 — This Is YOUR Stack</h2></div>
+  <div class="panel">
+    <h3>🧩 Everything you just learned, mapped to your app</h3>
+    <p><span class="tag b">Frontend</span> React on Netlify · <span class="tag g">Agent API</span> Express in Docker · <span class="tag p">Brain</span> Ollama (local, private) · <span class="tag">Memory</span> MongoDB + embeddings · <span class="tag b">Tools</span> create_task, log_expense, add_capture, search_personal_context</p>
+    <p>You're not just <i>using</i> an agent — you're building the factory that makes them. Each new tool you add gives your agent a new superpower, and you now know exactly where it plugs in.</p>
+  </div>
+
+  <!-- CHEAT SHEET -->
+  <div class="chapter"><h2 class="bangers" style="background:var(--orange)">🎤 Talk Like a Pro</h2></div>
+  <div class="cheat">
+    <ul>
+      <li>🗣️ "We do <b>continuous deployment</b> — push to main, CI gates it, Netlify ships it, every PR gets a preview."</li>
+      <li>🗣️ "The frontend's static on a CDN; the agent runs as a <b>containerized</b> service because an LLM can't live in a serverless function."</li>
+      <li>🗣️ "Tools are the only way the model touches data, so it's <b>validated and authorized</b> in one place."</li>
+      <li>🗣️ "Answers are <b>RAG-grounded</b> — we vector-search the user's own records before generating."</li>
+      <li>🗣️ "Vectors sit in Mongo; local cosine in dev, Atlas <b>$vectorSearch</b> in prod — same interface."</li>
+      <li>🗣️ "Secrets are <b>env vars</b>, never committed; HTTPS via a reverse proxy."</li>
+    </ul>
+  </div>
+
+  <div class="foot">The Agentic Adventure · made for Chandan · keep shipping 🚀</div>
+</div>
+</body>
+</html>
