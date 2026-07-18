@@ -77,46 +77,46 @@ Everything here is "the code doesn't do what it plainly intended." Fix as one ba
 
 ## Phase 1 — Data integrity & consistency (~1 week)
 
-- [ ] **1.1 One source of truth for capture types + shared quick-form.**
+- [x] **1.1 One source of truth for capture types + shared quick-form.**
   **Files:** new `src/constants/capture.ts` (export `CAPTURE_TYPES`: all 7 types with emoji/color); consume in `src/pages/CapturePage.tsx:8-16`, `src/pages/Dashboard/Home.tsx:167-178`, `src/components/QuickNotesPen.tsx:16-23`, `src/components/sage/SageStudio.tsx:53-56`, `src/components/VoiceTranscriber.tsx:23-29`. Optionally extract `<CaptureQuickForm>` for the three chip-picker surfaces.
   **Do:** delete the five local arrays; Home's quick bar gains compact type chips (today it hardcodes `type:'Idea'` — mislabels everything).
   **Accept:** `Article` selectable from every surface; grep finds exactly one `CAPTURE_TYPES` definition.
 
-- [ ] **1.2 Local-date utility (UTC off-by-one for IST users).**
+- [x] **1.2 Local-date utility (UTC off-by-one for IST users).**
   **Files:** new `src/utils/date.ts` (`localToday()` via `en-CA` locale or manual pad); replace `toISOString().slice(0,10)` in `src/pages/FinancePage.tsx:16`, `src/pages/CareerPage.tsx:11`, `src/pages/Dashboard/Home.tsx` (`todayISO`), `src/pages/HealthPage.tsx:17` (`toDate`), `src/pages/Calendar.tsx:65-73` (edit-prefill uses UTC date too).
   **Accept:** at a simulated 00:30 IST clock, a new transaction/health entry lands on the *local* date.
 
-- [ ] **1.3 Real habit streak.**
+- [x] **1.3 Real habit streak.**
   **Files:** `backend/controllers/personal.js` (`getDashboardStats` ~262-280), `src/pages/Dashboard/Home.tsx:161,383-387`, `src/components/sage/SagePersona.tsx:58`
   **Do:** stats endpoint returns both `habitsDoneToday` and a true `habitStreak` (fetch last ~60 `Health` docs sorted desc, count consecutive days with ≥1 habit done). UI: ring = done-today over total; streak copy uses the real streak. Ring denominator comes from the habit count, not hardcoded `/6`.
   **Accept:** with seeded Health docs for 3 consecutive days, dashboard + Sage nudge both say 3-day streak.
 
-- [ ] **1.4 Error-handling sweep on bare mutation handlers.**
+- [x] **1.4 Error-handling sweep on bare mutation handlers.**
   **Files:** `src/pages/CareerPage.tsx:39-87` (8 handlers), `src/pages/SocialPage.tsx:50-101` (8 handlers, plus `load()` at 40 has no visible error state at all), `src/pages/Calendar.tsx` (covered by 0.8), `src/pages/WorkflowManagerPage.tsx:53-176` (7 console-only catches)
   **Do:** add a tiny shared helper (e.g. `notifyError(err, fallbackMsg)` using react-toastify) and wrap every mutation; give SocialPage a visible load-error banner.
   **Accept:** with backend stopped, every button click on those pages produces a visible toast, never silence.
 
-- [ ] **1.5 Task editing + resurrect the dead `dueDate` field.**
+- [x] **1.5 Task editing + resurrect the dead `dueDate` field.**
   **Files:** `src/pages/PersonalTasksPage.tsx` (add edit affordance + date input in add-form — currently always sends `dueDate: null` at line 66 and never renders it), `backend/models/Task.js` (field exists), controller already supports update.
   **Do:** inline edit (title/priority/area/tab/dueDate); render due date on rows with overdue highlight; delete gets an undo-toast or confirm.
   **Accept:** create → edit title + set due date → both persist after refresh; overdue task visibly flagged.
 
-- [ ] **1.6 Goal editing, milestone delete, slider debounce.**
+- [x] **1.6 Goal editing, milestone delete, slider debounce.**
   **Files:** `src/pages/GoalsPage.tsx` (modal 148-189; slider 167-168 fires a PUT per drag-tick; milestone handlers 52-70 build from stale click-time state)
   **Do:** editable title/area/emoji/deadline in modal; ✕ per milestone; debounce progress PUT (fire on release / 400ms); build milestone updates from latest state (functional update) to fix the double-toggle race; deadline renders "X days left / overdue", not raw string.
   **Accept:** drag slider end-to-end → ≤2 PUTs in network tab; rapid-toggle two milestones → both persist.
 
-- [ ] **1.7 Finance: wire the orphaned Budget feature + transaction edit.**
+- [x] **1.7 Finance: wire the orphaned Budget feature + transaction edit.**
   **Files:** `src/pages/FinancePage.tsx:104-106` (hardcoded budget map), `src/services/personalApi.ts:70-74` (`budgetApi` — fully built, never imported), `backend/routes/personal.js:20-25` (budget routes exist; **add** `PUT /finance/:id`), `backend/controllers/personal.js` (add `updateTransaction`, user-scoped + whitelisted per 0.7)
   **Do:** Budget Overview reads/writes real budgets (editable limits per category, all 9 categories); transactions get an edit affordance; fix `formatINR` for negatives (`-₹1,500` not `₹-1,500`, line 17).
   **Accept:** set a Food budget of ₹4,000 → persists, spent-vs-limit bar reflects real transactions; edit a transaction amount → totals update.
 
-- [ ] **1.8 Knowledge edit UI (backend already supports it).**
+- [x] **1.8 Knowledge edit UI (backend already supports it).**
   **Files:** `src/pages/KnowledgePage.tsx:142-181` (detail modal is read-only; `knowledgeApi.update` at `personalApi.ts:86` is dead code)
   **Do:** make title/content/tags/type editable in the modal, save via the existing update endpoint.
   **Accept:** edit a note's content → persists after refresh.
 
-- [ ] **1.9 Double-submit locks on the two unguarded capture forms.**
+- [x] **1.9 Double-submit locks on the two unguarded capture forms.**
   **Files:** `src/pages/CapturePage.tsx:43-62,113,122`, `src/pages/Dashboard/Home.tsx:167-178`
   **Do:** `saving` flag + disabled button while POST in flight (copy the pattern from `QuickNotesPen.tsx:73-87`).
   **Accept:** double-clicking Save creates exactly one capture.

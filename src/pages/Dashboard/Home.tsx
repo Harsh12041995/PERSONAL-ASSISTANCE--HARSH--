@@ -6,6 +6,8 @@ import {
   statsApi, IDashboardStats, captureApi, ICapture,
   calendarApi, ICalendarEvent, healthApi, IHealthDay,
 } from '../../services/personalApi';
+import { CAPTURE_TYPES, CaptureType, captureMeta } from '../../constants/capture';
+import { localToday } from '../../utils/date';
 import { aiIntelligence } from '../../services/aiIntelligence';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,7 +86,7 @@ const EVENT_TAG_COLOR: Record<string, string> = {
 };
 const DEFAULT_TAG_COLOR = 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = localToday;
 const eventTime = (evt: ICalendarEvent) =>
   evt.allDay
     ? 'All day'
@@ -107,7 +109,9 @@ export default function Home() {
   const [stats, setStats] = useState<IDashboardStats | null>(null);
   const [recentCaptures, setRecentCaptures] = useState<ICapture[]>([]);
   const [captureText, setCaptureText] = useState('');
+  const [captureType, setCaptureType] = useState<CaptureType>('Idea');
   const [captureSubmitted, setCaptureSubmitted] = useState(false);
+  const [savingCapture, setSavingCapture] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
   const [loadingInsights, setLoadingInsights] = useState(true);
   const [todayEvents, setTodayEvents] = useState<ICalendarEvent[]>([]);
@@ -158,7 +162,7 @@ export default function Home() {
   // Build stats cards from real data
   const quickStats: QuickStat[] = [
     { label: 'Tasks Today', value: stats ? `${stats.tasksDone}/${stats.tasksToday}` : '—', sub: 'completed', icon: '✅', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100', link: '/personal-tasks' },
-    { label: 'Habit Streak', value: stats ? `${stats.habitStreak}🔥` : '—', sub: 'done today', icon: '💪', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100', link: '/health' },
+    { label: 'Habit Streak', value: stats ? `${stats.habitStreak}🔥` : '—', sub: stats && stats.habitStreak === 1 ? 'day streak' : 'day streak', icon: '💪', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100', link: '/health' },
     { label: 'Captured Today', value: stats?.capturedToday ?? '—', sub: 'ideas & notes', icon: '📝', color: 'text-violet-600', bg: 'bg-violet-50 border-violet-100', link: '/capture' },
     { label: 'Goals On Track', value: stats ? `${stats.goalsOnTrack}/${stats.goalsTotal}` : '—', sub: 'this month', icon: '🎯', color: 'text-pink-600', bg: 'bg-pink-50 border-pink-100', link: '/goals' },
   ];
@@ -166,14 +170,17 @@ export default function Home() {
   // Quick capture → POST to API
   const handleQuickCapture = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!captureText.trim()) return;
+    if (!captureText.trim() || savingCapture) return;
+    setSavingCapture(true);
     try {
-      await captureApi.create({ type: 'Idea', text: captureText, emoji: '💡' });
+      await captureApi.create({ type: captureType, text: captureText, emoji: captureMeta(captureType).emoji });
       setCaptureSubmitted(true);
       loadData(); // refresh stats
       setTimeout(() => { setCaptureText(''); setCaptureSubmitted(false); }, 2000);
     } catch {
       toast.error("Couldn't save your capture — please try again.");
+    } finally {
+      setSavingCapture(false);
     }
   };
 
@@ -278,7 +285,7 @@ export default function Home() {
       {/* ── Quick Capture Bar ──────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-900 dark:border-gray-800 p-4">
         <form onSubmit={handleQuickCapture} className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 text-lg">📝</div>
+          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 text-lg">{captureMeta(captureType).emoji}</div>
           <input
             type="text"
             value={captureText}
@@ -289,15 +296,31 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               type="submit"
-              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-shrink-0 ${captureSubmitted
+              disabled={savingCapture || !captureText.trim()}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-shrink-0 disabled:opacity-50 ${captureSubmitted
                 ? 'bg-emerald-500 text-white'
                 : 'bg-violet-600 hover:bg-violet-700 text-white'
                 }`}
             >
-              {captureSubmitted ? '✓ Saved!' : 'Capture'}
+              {captureSubmitted ? '✓ Saved!' : savingCapture ? 'Saving…' : 'Capture'}
             </button>
           </div>
         </form>
+        <div className="flex flex-wrap gap-1.5 mt-3 pl-11">
+          {CAPTURE_TYPES.map(t => (
+            <button
+              key={t.type}
+              type="button"
+              onClick={() => setCaptureType(t.type)}
+              className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${captureType === t.type
+                ? 'bg-violet-600 border-violet-600 text-white'
+                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-violet-300'
+                }`}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Module Shortcuts ───────────────────────────────────────────────── */}
@@ -375,17 +398,17 @@ export default function Home() {
                   stroke="#8b5cf6" strokeWidth="6"
                   strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 22}`}
-                  strokeDashoffset={`${2 * Math.PI * 22 * (1 - (stats?.habitStreak ?? 0) / 6)}`}
+                  strokeDashoffset={`${2 * Math.PI * 22 * (1 - (stats?.habitsDoneToday ?? 0) / 6)}`}
                   className="transition-all duration-500"
                 />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-violet-700">
-                {stats ? `${stats.habitStreak}/6` : '—'}
+                {stats ? `${stats.habitsDoneToday}/6` : '—'}
               </span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{stats?.habitStreak ?? 0}/6 done</p>
-              <p className="text-xs text-gray-400">Keep it up! 🔥</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{stats?.habitsDoneToday ?? 0}/6 done today</p>
+              <p className="text-xs text-gray-400">{stats && stats.habitStreak > 0 ? `${stats.habitStreak}-day streak 🔥` : 'Start a streak! 🔥'}</p>
             </div>
           </div>
 

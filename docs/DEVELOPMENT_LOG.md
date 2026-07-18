@@ -6,6 +6,29 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 1: data integrity & consistency ([task.md](../task.md) Phase 1)
+
+All 9 Phase 1 tasks on branch `fix/phase-1-consistency` (off Phase 0).
+
+### Added
+- `src/constants/capture.ts` — single `CAPTURE_TYPES` source of truth (+ `captureMeta`). Consumed by CapturePage, Home quick-bar, QuickNotesPen, Sage Studio, and VoiceTranscriber; the five divergent local arrays are deleted, so `Article`/`Urgent` are now reachable everywhere and the Home bar has real type chips (was hardcoded to `Idea`).
+- `src/utils/date.ts` — `localToday()`/`localDate()` replacing UTC `toISOString().slice(0,10)` in Finance, Career, Social, Health, Home, and Calendar (fixes the IST off-by-one at day boundaries).
+- `src/utils/notify.ts` — `notifyError()` (prefers backend message, toasts, logs).
+- Backend `updateTransaction` + `PUT /finance/:id`; client `financeApi.update`.
+
+### Changed
+- **Real habit streak**: `getDashboardStats` now returns `habitsDoneToday` (0–6 ring) and a true consecutive-day `habitStreak` (walks the last 90 Health docs, tolerant of an unlogged today). Home ring + streak copy and Sage's nudge are now truthful.
+- **Finance**: Budget Overview reads/writes real budgets via the previously-orphaned `budgetApi` (editable per-category limits, all categories); transactions are editable; `formatINR` fixed for negatives (`-₹1,500`).
+- **Editing added** where it was missing: Tasks (inline edit + the dead `dueDate` field wired end-to-end with an overdue/today badge), Goals (title/area/deadline edit, milestone delete, **debounced** progress slider — was one PUT per drag-tick, now one on pause; deadline shows "N days left / overdue"), Knowledge (modal Edit → reuses the create form via the existing update endpoint).
+- **Error sweep**: ~23 previously silent mutation handlers in Career, Social, and Workflow Manager now surface a toast via `notifyError`; SocialPage gained a visible load-error banner.
+- **Double-submit locks** on the two unguarded capture forms (CapturePage, Home).
+
+### Verification
+- `yarn build` green; eslint clean on touched files (remaining `any`/deps warnings are pre-existing baseline on untouched lines).
+- Runtime-tested against a local Mongo scratch DB: seeded 3 consecutive habit days → `dashboard/stats` returned `habitStreak:3, habitsDoneToday:1`; created a transaction then `PUT /finance/:id` updated the amount 100→250. Both PASS.
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 0: critical bug fixes ([task.md](../task.md) Phase 0)
 
 Executed all 9 Phase 0 tasks from the audit roadmap on branch `fix/phase-0-critical-bugs`.

@@ -146,6 +146,18 @@ exports.createTransaction = async (req, res) => {
     } catch (e) { fail(res, e); }
 };
 
+exports.updateTransaction = async (req, res) => {
+    try {
+        const txn = await Finance.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user._id },
+            sanitize(req.body),
+            { new: true }
+        );
+        if (!txn) return notFound(res, 'Transaction not found');
+        ok(res, txn);
+    } catch (e) { fail(res, e); }
+};
+
 exports.deleteTransaction = async (req, res) => {
     try {
         await Finance.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
@@ -264,20 +276,49 @@ exports.saveHealthDay = async (req, res) => {
 };
 
 // ─── Dashboard stats helper ────────────────────────────────────────────────────
+
+// Any habit ticked that day counts as an "active" day for the streak.
+const hasAnyHabitDone = (habits) => {
+    if (!habits) return false;
+    const values = habits instanceof Map ? Array.from(habits.values()) : Object.values(habits);
+    return values.some(Boolean);
+};
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Count consecutive days (ending today or yesterday) that have ≥1 habit done.
+const computeHabitStreak = (activeDates) => {
+    const set = new Set(activeDates);
+    const cursor = new Date();
+    // If today isn't logged yet, don't break the streak — start counting from yesterday.
+    if (!set.has(ymd(cursor))) cursor.setDate(cursor.getDate() - 1);
+    let streak = 0;
+    while (set.has(ymd(cursor))) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+};
+
 exports.getDashboardStats = async (req, res) => {
     try {
         const uid = req.user._id;
         const today = new Date().toISOString().slice(0, 10);
 
-        const [tasksTodayTotal, tasksTodayDone, capturedToday, goalsAll, healthToday] = await Promise.all([
+        const [tasksTodayTotal, tasksTodayDone, capturedToday, goalsAll, healthToday, recentHealth] = await Promise.all([
             Task.countDocuments({ userId: uid, tab: 'today' }),
             Task.countDocuments({ userId: uid, tab: 'today', done: true }),
             Capture.countDocuments({ userId: uid, createdAt: { $gte: new Date(today) } }),
             Goal.find({ userId: uid }, 'progress'),
             Health.findOne({ userId: uid, date: today }),
+            Health.find({ userId: uid }, 'date habits').sort({ date: -1 }).limit(90),
         ]);
 
         const goalsOnTrack = goalsAll.filter(g => g.progress >= 50).length;
+        const habitsDoneToday = healthToday?.habits
+            ? (healthToday.habits instanceof Map ? Array.from(healthToday.habits.values()) : Object.values(healthToday.habits)).filter(Boolean).length
+            : 0;
+        const activeDates = recentHealth.filter(h => hasAnyHabitDone(h.habits)).map(h => h.date);
+        const habitStreak = computeHabitStreak(activeDates);
 
         ok(res, {
             tasksToday: tasksTodayTotal,
@@ -285,7 +326,8 @@ exports.getDashboardStats = async (req, res) => {
             capturedToday,
             goalsOnTrack,
             goalsTotal: goalsAll.length,
-            habitStreak: healthToday?.habits ? Object.values(healthToday.habits).filter(Boolean).length : 0,
+            habitsDoneToday,
+            habitStreak,
         });
     } catch (e) { fail(res, e); }
 };

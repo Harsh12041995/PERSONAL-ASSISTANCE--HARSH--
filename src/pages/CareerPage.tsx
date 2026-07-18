@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { careerApi, IJob, ICert, ISkill, ICareerProfile } from '../services/personalApi';
+import { localToday } from '../utils/date';
+import { notifyError } from '../utils/notify';
 
 // ── Colour maps ────────────────────────────────────────────────────────────────
 const JOB_COLORS: Record<string, string> = {
@@ -8,7 +10,7 @@ const JOB_COLORS: Record<string, string> = {
     Active: 'bg-violet-100 text-violet-700', Withdrawn: 'bg-gray-100 text-gray-600',
 };
 const SKILL_COLORS = ['bg-sky-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500', 'bg-teal-500'];
-const today = () => new Date().toISOString().slice(0, 10);
+const today = localToday;
 
 export default function CareerPage() {
     const [jobs, setJobs] = useState<IJob[]>([]);
@@ -34,22 +36,28 @@ export default function CareerPage() {
     useEffect(() => { load(); }, [load]);
 
     // ── Job form ──────────────────────────────────────────────────────────────
-    const [jForm, setJForm] = useState({ company: '', role: '', status: 'Applied', date: today(), notes: '', salary: '', location: '' });
+    const [jForm, setJForm] = useState({ company: '', role: '', status: 'Applied', date: today(), notes: '', salary: '', location: '', type: 'Full-time', url: '' });
     const [jNew, setJNew] = useState(false);
     const addJob = async () => {
         if (!jForm.company || !jForm.role) return;
-        const created = await careerApi.createJob(jForm as any);
-        setJobs(prev => [created, ...prev]);
-        setJForm({ company: '', role: '', status: 'Applied', date: today(), notes: '', salary: '', location: '' });
-        setJNew(false);
+        try {
+            const created = await careerApi.createJob(jForm as Omit<IJob, '_id'>);
+            setJobs(prev => [created, ...prev]);
+            setJForm({ company: '', role: '', status: 'Applied', date: today(), notes: '', salary: '', location: '', type: 'Full-time', url: '' });
+            setJNew(false);
+        } catch (e) { notifyError(e, 'Failed to add job.'); }
     };
     const deleteJob = async (id: string) => {
-        await careerApi.deleteJob(id);
-        setJobs(prev => prev.filter(j => j._id !== id));
+        try {
+            await careerApi.deleteJob(id);
+            setJobs(prev => prev.filter(j => j._id !== id));
+        } catch (e) { notifyError(e, 'Failed to delete job.'); }
     };
     const updateJobStatus = async (id: string, status: string) => {
-        await careerApi.updateJob(id, { status });
-        setJobs(prev => prev.map(j => j._id === id ? { ...j, status } : j));
+        try {
+            await careerApi.updateJob(id, { status });
+            setJobs(prev => prev.map(j => j._id === id ? { ...j, status } : j));
+        } catch (e) { notifyError(e, 'Failed to update status.'); }
     };
 
     // ── Cert form ─────────────────────────────────────────────────────────────
@@ -57,14 +65,18 @@ export default function CareerPage() {
     const [cNew, setCNew] = useState(false);
     const addCert = async () => {
         if (!cForm.name || !cForm.issuer) return;
-        const created = await careerApi.createCert(cForm as any);
-        setCerts(prev => [created, ...prev]);
-        setCForm({ name: '', issuer: '', emoji: '🏆', issued: today(), expires: '', status: 'Active', credentialUrl: '' });
-        setCNew(false);
+        try {
+            const created = await careerApi.createCert(cForm as Omit<ICert, '_id'>);
+            setCerts(prev => [created, ...prev]);
+            setCForm({ name: '', issuer: '', emoji: '🏆', issued: today(), expires: '', status: 'Active', credentialUrl: '' });
+            setCNew(false);
+        } catch (e) { notifyError(e, 'Failed to add certification.'); }
     };
     const deleteCert = async (id: string) => {
-        await careerApi.deleteCert(id);
-        setCerts(prev => prev.filter(c => c._id !== id));
+        try {
+            await careerApi.deleteCert(id);
+            setCerts(prev => prev.filter(c => c._id !== id));
+        } catch (e) { notifyError(e, 'Failed to delete certification.'); }
     };
 
     // ── Skill form ────────────────────────────────────────────────────────────
@@ -72,18 +84,24 @@ export default function CareerPage() {
     const [sNew, setSNew] = useState(false);
     const addSkill = async () => {
         if (!sForm.name) return;
-        const created = await careerApi.createSkill(sForm as any);
-        setSkills(prev => [...prev, created]);
-        setSForm({ name: '', level: 50, category: 'Technical', emoji: '⚡' });
-        setSNew(false);
+        try {
+            const created = await careerApi.createSkill(sForm as Omit<ISkill, '_id'>);
+            setSkills(prev => [...prev, created]);
+            setSForm({ name: '', level: 50, category: 'Technical', emoji: '⚡' });
+            setSNew(false);
+        } catch (e) { notifyError(e, 'Failed to add skill.'); }
     };
     const deleteSkill = async (id: string) => {
-        await careerApi.deleteSkill(id);
-        setSkills(prev => prev.filter(s => s._id !== id));
+        try {
+            await careerApi.deleteSkill(id);
+            setSkills(prev => prev.filter(s => s._id !== id));
+        } catch (e) { notifyError(e, 'Failed to delete skill.'); }
     };
     const updateSkillLevel = async (id: string, level: number) => {
-        await careerApi.updateSkill(id, { level });
-        setSkills(prev => prev.map(s => s._id === id ? { ...s, level } : s));
+        try {
+            await careerApi.updateSkill(id, { level });
+            setSkills(prev => prev.map(s => s._id === id ? { ...s, level } : s));
+        } catch (e) { notifyError(e, 'Failed to update skill.'); }
     };
 
     // ── Profile save ──────────────────────────────────────────────────────────

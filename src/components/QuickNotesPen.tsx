@@ -3,24 +3,14 @@ import { Link } from 'react-router-dom';
 import { PenLine, Feather, X, QrCode as QrCodeIcon, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { toast } from 'react-toastify';
-import { captureApi, ICapture } from '../services/personalApi';
+import { captureApi } from '../services/personalApi';
+import { CAPTURE_TYPES, CaptureType, captureMeta } from '../constants/capture';
 import { useTheme } from '../context/ThemeContext';
 
 // Replaces the old third-party "Support" widget slot with something you'll
 // actually use: instant capture, quick-action shortcuts, and a mobile bridge —
 // scan the QR to open this same portal on your phone (sign in once there and
 // everything you capture stays in sync, since it's the same account).
-
-type CaptureType = ICapture['type'];
-
-const TYPES: { type: CaptureType; emoji: string; label: string }[] = [
-    { type: 'Idea', emoji: '💡', label: 'Idea' },
-    { type: 'Task', emoji: '✅', label: 'Task' },
-    { type: 'Journal', emoji: '📓', label: 'Journal' },
-    { type: 'Follow-up', emoji: '📞', label: 'Follow-up' },
-    { type: 'Money', emoji: '💰', label: 'Money' },
-    { type: 'Urgent', emoji: '🔴', label: 'Urgent' },
-];
 
 const QUICK_ACTIONS = [
     { label: 'New Task', emoji: '✅', path: '/personal-tasks' },
@@ -74,7 +64,7 @@ export default function QuickNotesPen() {
         e.preventDefault();
         if (!text.trim() || saving) return;
         setSaving(true);
-        const tc = TYPES.find(t => t.type === type)!;
+        const tc = captureMeta(type);
         try {
             await captureApi.create({ type, text: text.trim(), emoji: tc.emoji });
             toast.success(`Saved to ${tc.label} ✓`);
@@ -153,7 +143,7 @@ export default function QuickNotesPen() {
                             className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition-all resize-none"
                         />
                         <div className="flex flex-wrap gap-1.5 mt-3">
-                            {TYPES.map(t => (
+                            {CAPTURE_TYPES.map(t => (
                                 <button
                                     key={t.type}
                                     type="button"

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { aiIntelligence } from '../services/aiIntelligence';
 import { captureApi, ICapture } from '../services/personalApi';
+import { CAPTURE_TYPES, captureMeta } from '../constants/capture';
 
 interface VoiceTranscriberProps {
     onClose: () => void;
@@ -20,13 +21,6 @@ type SpeechRecognitionLike = {
     stop: () => void;
 };
 
-const CATEGORIES: { type: ICapture['type']; emoji: string; color: string }[] = [
-    { type: 'Idea', emoji: '💡', color: 'bg-amber-100 text-amber-700' },
-    { type: 'Task', emoji: '✅', color: 'bg-emerald-100 text-emerald-700' },
-    { type: 'Journal', emoji: '📓', color: 'bg-violet-100 text-violet-700' },
-    { type: 'Follow-up', emoji: '📞', color: 'bg-sky-100 text-sky-700' },
-    { type: 'Money', emoji: '💰', color: 'bg-green-100 text-green-700' },
-];
 
 const LANGUAGES = [
     { value: 'en-US', label: 'English (US)' },
@@ -229,7 +223,7 @@ const VoiceTranscriber: React.FC<VoiceTranscriberProps> = ({ onClose, initialTyp
 
         setStatus('saving');
         try {
-            const typeConf = CATEGORIES.find((c) => c.type === selectedType) || CATEGORIES[0];
+            const typeConf = captureMeta(selectedType);
             const newCapture = await captureApi.create({
                 type: selectedType,
                 text: finalTranscript.trim(),
@@ -296,7 +290,7 @@ const VoiceTranscriber: React.FC<VoiceTranscriberProps> = ({ onClose, initialTyp
 
                 <div className="p-6 space-y-5">
                     <div className="flex flex-wrap gap-2 items-center">
-                        {CATEGORIES.map((cat) => (
+                        {CAPTURE_TYPES.map((cat) => (
                             <button
                                 key={cat.type}
                                 onClick={() => setSelectedType(cat.type)}

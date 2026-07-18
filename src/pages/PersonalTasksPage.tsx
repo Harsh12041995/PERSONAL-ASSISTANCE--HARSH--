@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { taskApi, ITask } from '../services/personalApi';
 import { aiIntelligence } from '../services/aiIntelligence';
+import { localToday } from '../utils/date';
 
 type TabId = 'today' | 'week' | 'someday';
 
@@ -26,6 +27,9 @@ export default function PersonalTasksPage() {
     const [newTask, setNewTask] = useState('');
     const [newPriority, setNewPriority] = useState<ITask['priority']>('medium');
     const [newArea, setNewArea] = useState('Work');
+    const [newDue, setNewDue] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [analyzing, setAnalyzing] = useState(false);
@@ -59,14 +63,34 @@ export default function PersonalTasksPage() {
         } catch { setError('Failed to delete task.'); }
     };
 
+    const resetForm = () => { setNewTask(''); setNewPriority('medium'); setNewArea('Work'); setNewDue(''); setEditingId(null); };
+
+    const startEdit = (task: ITask) => {
+        setEditingId(task._id);
+        setNewTask(task.title);
+        setNewPriority(task.priority);
+        setNewArea(task.area);
+        setNewDue(task.dueDate ? task.dueDate.slice(0, 10) : '');
+        setActiveTab(task.tab as TabId);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const addTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTask.trim()) return;
+        if (!newTask.trim() || saving) return;
+        setSaving(true);
+        const payload = { title: newTask, priority: newPriority, area: newArea, tab: activeTab, dueDate: newDue || null };
         try {
-            const created = await taskApi.create({ title: newTask, priority: newPriority, area: newArea, tab: activeTab, done: false, dueDate: null });
-            setTasks(prev => [created, ...prev]);
-            setNewTask('');
-        } catch { setError('Failed to add task.'); }
+            if (editingId) {
+                const updated = await taskApi.update(editingId, payload);
+                if (updated) setTasks(prev => prev.map(t => t._id === editingId ? updated : t));
+            } else {
+                const created = await taskApi.create({ ...payload, done: false });
+                setTasks(prev => [created, ...prev]);
+            }
+            resetForm();
+        } catch { setError('Failed to save task.'); }
+        finally { setSaving(false); }
     };
 
     return (
@@ -130,10 +154,10 @@ export default function PersonalTasksPage() {
                 ))}
             </div>
 
-            {/* Add task */}
+            {/* Add / edit task */}
             <form onSubmit={addTask} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-2">
                 <input value={newTask} onChange={e => setNewTask(e.target.value)}
-                    placeholder="Add a new task..." className="flex-1 min-w-[200px] bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                    placeholder={editingId ? 'Edit task…' : 'Add a new task...'} className="flex-1 min-w-[200px] bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
                 <select value={newArea} onChange={e => setNewArea(e.target.value)}
                     className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none">
                     {AREAS.filter(a => a !== 'All').map(a => <option key={a}>{a}</option>)}
@@ -142,7 +166,10 @@ export default function PersonalTasksPage() {
                     className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none">
                     {['high', 'medium', 'low'].map(p => <option key={p}>{p}</option>)}
                 </select>
-                <button type="submit" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors">+ Add</button>
+                <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} title="Due date (optional)"
+                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                <button type="submit" disabled={saving || !newTask.trim()} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Update' : '+ Add'}</button>
+                {editingId && <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-200 text-gray-500 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>}
             </form>
 
             {/* Progress bar */}
@@ -188,8 +215,22 @@ export default function PersonalTasksPage() {
                                 {task.done && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                             </button>
                             <span className={`flex-1 text-sm ${task.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</span>
+                            {task.dueDate && (() => {
+                                const due = task.dueDate.slice(0, 10);
+                                const overdue = !task.done && due < localToday();
+                                const isToday = due === localToday();
+                                return (
+                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${overdue ? 'bg-red-100 text-red-700' : isToday ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {overdue ? '⚠ ' : '📅 '}{new Date(due + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                );
+                            })()}
                             <span className={`text-xs font-bold ${PRIORITY_COLORS[task.priority]}`}>●</span>
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${AREA_COLORS[task.area] || 'bg-gray-100 text-gray-600'}`}>{task.area}</span>
+                            <button onClick={() => startEdit(task)} title="Edit"
+                                className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-400 hover:text-violet-500 hover:bg-violet-50 transition-all">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
                             <button onClick={() => removeTask(task._id)}
                                 className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

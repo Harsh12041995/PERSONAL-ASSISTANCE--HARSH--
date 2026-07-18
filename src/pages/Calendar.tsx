@@ -8,6 +8,7 @@ import { Modal } from "../components/ui/modal";
 import { useModal } from "../hooks/useModal";
 import PageMeta from "../shared/PageMeta";
 import { calendarApi } from "../services/personalApi";
+import { localDate } from "../utils/date";
 
 interface CalendarEvent extends EventInput {
   id: string;
@@ -69,8 +70,8 @@ const Calendar: React.FC = () => {
     const event = clickInfo.event;
     setSelectedEvent(event as unknown as CalendarEvent);
     setEventTitle(event.title);
-    setEventStartDate(event.start?.toISOString().split("T")[0] || "");
-    setEventEndDate(event.end?.toISOString().split("T")[0] || "");
+    setEventStartDate(event.start ? localDate(event.start) : "");
+    setEventEndDate(event.end ? localDate(event.end) : "");
     setEventLevel(event.extendedProps.calendar || "Primary");
     openModal();
   };

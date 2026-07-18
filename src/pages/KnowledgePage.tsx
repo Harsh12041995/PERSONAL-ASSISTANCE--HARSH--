@@ -15,6 +15,8 @@ export default function KnowledgePage() {
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState<INote | null>(null);
     const [showForm, setShowForm] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
     const [title, setTitle] = useState('');
     const [type, setType] = useState<INote['type']>('Note');
     const [content, setContent] = useState('');
@@ -38,16 +40,33 @@ export default function KnowledgePage() {
         (n.title.toLowerCase().includes(search.toLowerCase()) || n.content.toLowerCase().includes(search.toLowerCase()))
     );
 
+    const resetForm = () => { setTitle(''); setContent(''); setTagInput(''); setType('Note'); setEditingId(null); setShowForm(false); };
+
+    const startEdit = (n: INote) => {
+        setEditingId(n._id);
+        setTitle(n.title); setType(n.type); setContent(n.content || '');
+        setTagInput((n.tags || []).join(', '));
+        setShowForm(true); setSelected(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const save = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!title.trim() || saving) return;
         const conf = typeConf(type);
         const tags = tagInput.split(',').map(t => t.trim()).filter(Boolean);
+        setSaving(true);
         try {
-            const saved = await knowledgeApi.create({ title, type, content, tags, emoji: conf.emoji });
-            setNotes(prev => [saved, ...prev]);
-            setTitle(''); setContent(''); setTagInput(''); setShowForm(false);
+            if (editingId) {
+                const updated = await knowledgeApi.update(editingId, { title, type, content, tags, emoji: conf.emoji });
+                if (updated) setNotes(prev => prev.map(n => n._id === editingId ? updated : n));
+            } else {
+                const saved = await knowledgeApi.create({ title, type, content, tags, emoji: conf.emoji });
+                setNotes(prev => [saved, ...prev]);
+            }
+            resetForm();
         } catch { setError('Failed to save note.'); }
+        finally { setSaving(false); }
     };
 
     const remove = async (id: string) => {
@@ -62,7 +81,7 @@ export default function KnowledgePage() {
                     <h1 className="text-2xl font-bold text-gray-900">🧠 Knowledge Base</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Notes, books, articles & learnings — all in one place</p>
                 </div>
-                <button onClick={() => setShowForm(p => !p)} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                <button onClick={() => { if (showForm) resetForm(); else setShowForm(true); }} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors">
                     {showForm ? '✕ Cancel' : '+ Add Note'}
                 </button>
             </div>
@@ -88,7 +107,7 @@ export default function KnowledgePage() {
                     <div className="flex gap-2">
                         <input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="Tags (comma separated)"
                             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
-                        <button type="submit" className="px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold">Save</button>
+                        <button type="submit" disabled={saving || !title.trim()} className="px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Update' : 'Save'}</button>
                     </div>
                 </form>
             )}
@@ -142,9 +161,12 @@ export default function KnowledgePage() {
             {selected && (
                 <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelected(null)}>
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between mb-4">
+                        <div className="flex justify-between items-center mb-4">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeConf(selected.type).color}`}>{typeConf(selected.type).emoji} {selected.type}</span>
-                            <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => startEdit(selected)} className="text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded-lg transition-colors">✏️ Edit</button>
+                                <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                            </div>
                         </div>
                         <h2 className="text-lg font-bold text-gray-900 mb-3">{selected.title}</h2>
                         {selected.content && <p className="text-sm text-gray-600 leading-relaxed mb-4 whitespace-pre-wrap">{selected.content}</p>}

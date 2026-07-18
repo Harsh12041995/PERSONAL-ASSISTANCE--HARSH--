@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { healthApi, IHealthDay } from '../services/personalApi';
+import { localDate } from '../utils/date';
 
 const HABITS = [
     { name: 'Morning workout', emoji: '💪' },
@@ -14,7 +15,7 @@ const MOODS = [
     { emoji: '😐', label: 'Okay' }, { emoji: '😔', label: 'Low' },
     { emoji: '😩', label: 'Stressed' },
 ];
-const toDate = (d = new Date()) => d.toISOString().slice(0, 10);
+const toDate = (d = new Date()) => localDate(d);
 const sleepHrs = (bed: string, wake: string) => {
     if (!bed || !wake) return '—';
     const [bh, bm] = bed.split(':').map(Number);

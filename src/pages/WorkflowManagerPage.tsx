@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageMeta from '../shared/PageMeta';
 import { IWorkflowConfig, IWorkflowDMActivity, IWorkflowQueueItem, workflowApi, automationApi } from '../services/personalApi';
+import { notifyError } from '../utils/notify';
 
 const defaultConfig: IWorkflowConfig = {
   connections: { instagram: false, googleDrive: false, captionEngine: false },
@@ -80,7 +81,7 @@ export default function WorkflowManagerPage() {
     try {
       await workflowApi.saveConfig(next);
     } catch (e) {
-      console.error('Failed saving config', e);
+      notifyError(e, 'Failed to save config.');
     } finally {
       setSaving(false);
     }
@@ -118,7 +119,7 @@ export default function WorkflowManagerPage() {
       setQueue((prev) => [created, ...prev]);
       setNewAsset({ fileName: '', driveFolder: '', caption: '', scheduledAt: '' });
     } catch (e) {
-      console.error('Failed adding queue item', e);
+      notifyError(e, 'Failed to add queue item.');
     }
   };
 
@@ -131,7 +132,7 @@ export default function WorkflowManagerPage() {
       const updated = await workflowApi.updateQueueItem(id, { status: next });
       setQueue((prev) => prev.map((q) => (q._id === id ? updated : q)));
     } catch (e) {
-      console.error('Failed updating queue item', e);
+      notifyError(e, 'Failed to update queue item.');
     }
   };
 
@@ -140,7 +141,7 @@ export default function WorkflowManagerPage() {
       await workflowApi.deleteQueueItem(id);
       setQueue((prev) => prev.filter((q) => q._id !== id));
     } catch (e) {
-      console.error('Failed deleting queue item', e);
+      notifyError(e, 'Failed to delete queue item.');
     }
   };
 
@@ -157,7 +158,7 @@ export default function WorkflowManagerPage() {
       setDmActivity((prev) => [created, ...prev]);
       setNewDM({ sender: '', message: '', category: 'general' });
     } catch (e) {
-      console.error('Failed creating DM activity', e);
+      notifyError(e, 'Failed to create DM activity.');
     }
   };
 
@@ -176,7 +177,7 @@ export default function WorkflowManagerPage() {
       const updated = await workflowApi.updateDMActivity(id, { status });
       setDmActivity((prev) => prev.map((d) => (d._id === id ? updated : d)));
     } catch (e) {
-      console.error('Failed updating DM status', e);
+      notifyError(e, 'Failed to update DM status.');
     }
   };
 
@@ -188,7 +189,7 @@ export default function WorkflowManagerPage() {
       setAutomationResult(res);
       await loadAll(); // Refresh data
     } catch (e) {
-      console.error('Automation failed', e);
+      notifyError(e, 'Automation run failed.');
     } finally {
       setRunningAutomation(false);
     }

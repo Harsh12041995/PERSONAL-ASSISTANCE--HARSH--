@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { socialApi, settingsApi, IContact, IContentIdea, ISocialPlatform, IUserSettings } from '../services/personalApi';
+import { localToday } from '../utils/date';
+import { notifyError } from '../utils/notify';
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = ['bg-blue-500', 'bg-pink-500', 'bg-violet-500', 'bg-orange-500', 'bg-emerald-500', 'bg-red-500', 'bg-indigo-500', 'bg-teal-500'];
@@ -18,7 +20,7 @@ const PLATFORM_GRADIENT: Record<string, string> = {
     Twitter: 'from-sky-400 to-sky-500', YouTube: 'from-red-500 to-red-600', Other: 'from-gray-500 to-gray-600',
 };
 const daysSince = (d: string) => { if (!d) return 999; return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = localToday;
 
 export default function SocialPage() {
     const [settings, setSettings] = useState<IUserSettings | null>(null);
@@ -27,17 +29,22 @@ export default function SocialPage() {
     const [platforms, setPlatforms] = useState<ISocialPlatform[]>([]);
     const [tab, setTab] = useState<'contacts' | 'ideas' | 'platforms'>('contacts');
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [search, setSearch] = useState('');
 
     // ── Load on mount ─────────────────────────────────────────────────────────
     const load = useCallback(async () => {
         setLoading(true);
+        setLoadError('');
         try {
             const [c, i, p] = await Promise.all([
                 socialApi.getContacts(), socialApi.getIdeas(), socialApi.getPlatforms(),
             ]);
             setContacts(c || []); setIdeas(i || []); setPlatforms(p || []);
-        } catch (e) { console.error('Social load error', e); }
+        } catch (e) {
+            console.error('Social load error', e);
+            setLoadError('Could not load your social data. Check your connection and retry.');
+        }
         finally { setLoading(false); }
     }, []);
 
@@ -49,18 +56,24 @@ export default function SocialPage() {
     const [cNew, setCNew] = useState(false);
     const addContact = async () => {
         if (!cForm.name) return;
-        const created = await socialApi.createContact({ ...cForm, email: '', tags: [], socialLinks: { instagram: '', linkedin: '', twitter: '' } } as any);
-        setContacts(prev => [created, ...prev]);
-        setCForm({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
-        setCNew(false);
+        try {
+            const created = await socialApi.createContact({ ...cForm, email: '', tags: [], socialLinks: { instagram: '', linkedin: '', twitter: '' } } as Omit<IContact, '_id'>);
+            setContacts(prev => [created, ...prev]);
+            setCForm({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
+            setCNew(false);
+        } catch (e) { notifyError(e, 'Failed to add contact.'); }
     };
     const deleteContact = async (id: string) => {
-        await socialApi.deleteContact(id);
-        setContacts(prev => prev.filter(c => c._id !== id));
+        try {
+            await socialApi.deleteContact(id);
+            setContacts(prev => prev.filter(c => c._id !== id));
+        } catch (e) { notifyError(e, 'Failed to delete contact.'); }
     };
     const touchContact = async (id: string) => {
-        await socialApi.updateContact(id, { lastTalked: today() });
-        setContacts(prev => prev.map(c => c._id === id ? { ...c, lastTalked: today() } : c));
+        try {
+            await socialApi.updateContact(id, { lastTalked: today() });
+            setContacts(prev => prev.map(c => c._id === id ? { ...c, lastTalked: today() } : c));
+        } catch (e) { notifyError(e, 'Failed to update contact.'); }
     };
 
     // ── Content idea handlers ─────────────────────────────────────────────────
@@ -68,18 +81,24 @@ export default function SocialPage() {
     const [iNew, setINew] = useState(false);
     const addIdea = async () => {
         if (!iForm.title) return;
-        const created = await socialApi.createIdea({ ...iForm, tags: [] } as any);
-        setIdeas(prev => [created, ...prev]);
-        setIForm({ title: '', platform: 'Instagram', status: 'Idea', notes: '', dueDate: '' });
-        setINew(false);
+        try {
+            const created = await socialApi.createIdea({ ...iForm, tags: [] } as Omit<IContentIdea, '_id'>);
+            setIdeas(prev => [created, ...prev]);
+            setIForm({ title: '', platform: 'Instagram', status: 'Idea', notes: '', dueDate: '' });
+            setINew(false);
+        } catch (e) { notifyError(e, 'Failed to add idea.'); }
     };
     const deleteIdea = async (id: string) => {
-        await socialApi.deleteIdea(id);
-        setIdeas(prev => prev.filter(i => i._id !== id));
+        try {
+            await socialApi.deleteIdea(id);
+            setIdeas(prev => prev.filter(i => i._id !== id));
+        } catch (e) { notifyError(e, 'Failed to delete idea.'); }
     };
     const updateIdeaStatus = async (id: string, status: string) => {
-        await socialApi.updateIdea(id, { status });
-        setIdeas(prev => prev.map(i => i._id === id ? { ...i, status } : i));
+        try {
+            await socialApi.updateIdea(id, { status });
+            setIdeas(prev => prev.map(i => i._id === id ? { ...i, status } : i));
+        } catch (e) { notifyError(e, 'Failed to update idea.'); }
     };
 
     // ── Platform handlers ─────────────────────────────────────────────────────
@@ -87,17 +106,21 @@ export default function SocialPage() {
     const [pNew, setPNew] = useState(false);
     const upsertPlatform = async () => {
         if (!pForm.platform) return;
-        const created = await socialApi.upsertPlatform({ ...pForm, following: 0 } as any);
-        setPlatforms(prev => {
-            const exists = prev.find(p => p.platform === created.platform);
-            return exists ? prev.map(p => p._id === created._id ? created : p) : [created, ...prev];
-        });
-        setPForm({ platform: 'Instagram', handle: '', followers: 0, engagement: '0%', emoji: '📸', profileUrl: '', lastPost: '' });
-        setPNew(false);
+        try {
+            const created = await socialApi.upsertPlatform({ ...pForm } as Omit<ISocialPlatform, '_id'>);
+            setPlatforms(prev => {
+                const exists = prev.find(p => p.platform === created.platform);
+                return exists ? prev.map(p => p._id === created._id ? created : p) : [created, ...prev];
+            });
+            setPForm({ platform: 'Instagram', handle: '', followers: 0, engagement: '0%', emoji: '📸', profileUrl: '', lastPost: '' });
+            setPNew(false);
+        } catch (e) { notifyError(e, 'Failed to save platform.'); }
     };
     const deletePlatform = async (id: string) => {
-        await socialApi.deletePlatform(id);
-        setPlatforms(prev => prev.filter(p => p._id !== id));
+        try {
+            await socialApi.deletePlatform(id);
+            setPlatforms(prev => prev.filter(p => p._id !== id));
+        } catch (e) { notifyError(e, 'Failed to delete platform.'); }
     };
 
     // ── Filtered contacts ─────────────────────────────────────────────────────
@@ -130,6 +153,8 @@ export default function SocialPage() {
                 <h1 className="text-2xl font-bold text-gray-900">🌐 Social Hub</h1>
                 <p className="text-sm text-gray-500 mt-0.5">Relationships, content pipeline &amp; social stats · Synced to MongoDB</p>
             </div>
+
+            {loadError && <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-xl">{loadError}</p>}
 
             {/* Stats bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

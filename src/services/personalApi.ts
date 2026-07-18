@@ -65,6 +65,7 @@ export interface IBudget { _id: string; category: string; limit: number; emoji: 
 export const financeApi = {
     getAll: () => api.get('/finance').then(data),
     create: (d: Omit<ITransaction, '_id' | 'createdAt'>) => api.post('/finance', d).then(data),
+    update: (id: string, d: Partial<ITransaction>) => api.put(`/finance/${id}`, d).then(data),
     remove: (id: string) => api.delete(`/finance/${id}`).then(data),
 };
 export const budgetApi = {
@@ -330,7 +331,7 @@ export const automationApi = {
 // ═══════════════════════════════════════════════════════════════════════════════
 export interface IDashboardStats {
     tasksToday: number; tasksDone: number; capturedToday: number;
-    goalsOnTrack: number; goalsTotal: number; habitStreak: number;
+    goalsOnTrack: number; goalsTotal: number; habitStreak: number; habitsDoneToday: number;
 }
 export const statsApi = {
     get: () => api.get('/dashboard/stats').then(data) as Promise<IDashboardStats>,

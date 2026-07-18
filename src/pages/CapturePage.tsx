@@ -1,19 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { captureApi, ICapture } from '../services/personalApi';
+import { CAPTURE_TYPES, CaptureType, captureMeta } from '../constants/capture';
 import VoiceTranscriber from '../components/VoiceTranscriber';
-
-type CaptureType = ICapture['type'];
-
-const CAPTURE_TYPES: { type: CaptureType; emoji: string; label: string; color: string; bg: string }[] = [
-    { type: 'Idea', emoji: '💡', label: 'Idea', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-    { type: 'Task', emoji: '✅', label: 'Task', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    { type: 'Article', emoji: '📰', label: 'Article', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
-    { type: 'Follow-up', emoji: '📞', label: 'Follow-up', color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
-    { type: 'Money', emoji: '💰', label: 'Money', color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
-    { type: 'Urgent', emoji: '🔴', label: 'Urgent', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
-    { type: 'Journal', emoji: '📓', label: 'Journal', color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
-];
 
 export default function CapturePage() {
     const [captures, setCaptures] = useState<ICapture[]>([]);
@@ -21,6 +10,7 @@ export default function CapturePage() {
     const [selectedType, setSelectedType] = useState<CaptureType>('Idea');
     const [filterType, setFilterType] = useState<CaptureType | 'All'>('All');
     const [submitted, setSubmitted] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showVoice, setShowVoice] = useState(false);
@@ -43,9 +33,10 @@ export default function CapturePage() {
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        if (!text.trim()) return;
+        if (!text.trim() || saving) return;
 
-        const tc = CAPTURE_TYPES.find(c => c.type === selectedType)!;
+        const tc = captureMeta(selectedType);
+        setSaving(true);
         try {
             const saved = await captureApi.create({
                 type: selectedType,
@@ -59,6 +50,7 @@ export default function CapturePage() {
             setSubmitted(true);
             setTimeout(() => setSubmitted(false), 2000);
         } catch { setError('Failed to save.'); }
+        finally { setSaving(false); }
     };
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -119,10 +111,10 @@ export default function CapturePage() {
                                 🎙️ Record Voice Journal
                             </button>
                         </div>
-                        <button type="submit"
-                            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200
+                        <button type="submit" disabled={saving || !text.trim()}
+                            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-50
                                 ${submitted ? 'bg-emerald-500 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`}>
-                            {submitted ? '✓ Captured!' : `Save ${CAPTURE_TYPES.find(c => c.type === selectedType)?.emoji}`}
+                            {submitted ? '✓ Captured!' : saving ? 'Saving…' : `Save ${captureMeta(selectedType).emoji}`}
                         </button>
                     </div>
                 </form>

@@ -5,7 +5,8 @@ import {
     Download, Sparkles, Send, ScanEye, CircleDot, Trash2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { captureApi, ICapture } from '../../services/personalApi';
+import { captureApi } from '../../services/personalApi';
+import { CAPTURE_TYPES, captureMeta, CaptureType } from '../../constants/capture';
 import { aiIntelligence } from '../../services/aiIntelligence';
 import { streamAgentChat } from '../../services/agent.api';
 import SageOrb from './SageOrb';
@@ -14,7 +15,6 @@ import type { SageMood, SageIntent } from './types';
 // ─── Types & constants ────────────────────────────────────────────────────────
 
 type Tab = 'talk' | 'note' | 'camera' | 'screen' | 'ledger';
-type CaptureType = ICapture['type'];
 
 interface LedgerEntry { t: string; icon: string; text: string }
 
@@ -50,10 +50,6 @@ type SpeechRecognitionLike = {
 };
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
-const CHIP_TYPES: { type: CaptureType; emoji: string }[] = [
-    { type: 'Idea', emoji: '💡' }, { type: 'Task', emoji: '✅' }, { type: 'Journal', emoji: '📓' },
-    { type: 'Follow-up', emoji: '📞' }, { type: 'Money', emoji: '💰' }, { type: 'Urgent', emoji: '🔴' },
-];
 
 const LANGUAGES = [
     { value: 'en-IN', label: 'English (India)' },
@@ -81,7 +77,7 @@ const download = (blob: Blob, name: string) => {
 
 const TypeChips = ({ value, onChange, disabled }: { value: CaptureType; onChange: (t: CaptureType) => void; disabled?: boolean }) => (
     <div className="flex flex-wrap gap-1.5">
-        {CHIP_TYPES.map(c => (
+        {CAPTURE_TYPES.map(c => (
             <button key={c.type} type="button" disabled={disabled} onClick={() => onChange(c.type)}
                 className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors disabled:opacity-50 ${value === c.type
                     ? 'bg-violet-600 border-violet-600 text-white'
@@ -336,7 +332,7 @@ function TalkTab({ log, onMood, flash, saveCapture, autoRecord }: {
     const save = async () => {
         if (!finalText.trim()) return;
         try {
-            const chip = CHIP_TYPES.find(c => c.type === type)!;
+            const chip = captureMeta(type);
             await saveCapture(type, chip.emoji, finalText.trim(), 'Transcript');
             log('💾', `Transcript saved as ${type} (${words} words)`);
             setFinalText('');
@@ -506,7 +502,7 @@ function NoteTab({ log, flash, saveCapture, autoFocus }: {
         if (!text.trim() || saving) return;
         setSaving(true);
         try {
-            const chip = CHIP_TYPES.find(c => c.type === type)!;
+            const chip = captureMeta(type);
             await saveCapture(type, chip.emoji, text.trim(), 'Note');
             log('✍️', `Note saved as ${type} (${words} words)`);
             setText('');

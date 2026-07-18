@@ -19,6 +19,7 @@ router.post('/tasks/analyze', p.analyzeTasks);
 // ── Finance ───────────────────────────────────────────────────────────────────
 router.get('/finance', p.getTransactions);
 router.post('/finance', p.createTransaction);
+router.put('/finance/:id', p.updateTransaction);
 router.delete('/finance/:id', p.deleteTransaction);
 router.get('/budgets', p.getBudgets);
 router.post('/budgets', p.upsertBudget);
