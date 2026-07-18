@@ -76,6 +76,66 @@ const generateText = async (prompt, systemPrompt = "You are a helpful assistant.
 };
 
 /**
+ * Vision: analyze a camera/screen frame. Needs a vision-capable provider —
+ * Gemini (inline_data) or OpenAI (gpt-4o-mini image_url). The local Ollama
+ * text model can't see, so with no cloud key we fail with a clear message.
+ * @param {string} imageBase64 raw base64 (no data: prefix)
+ * @param {string} mimeType e.g. image/jpeg
+ * @param {string} prompt what to look for
+ */
+const analyzeImage = async (imageBase64, mimeType, prompt, config = {}) => {
+    const { geminiKey, chatgptKey } = config;
+    const instruction = prompt || 'Describe what you see in this image in 2-4 concise, useful sentences. If there is text, transcribe the important parts. If it looks like a workspace/screen, summarize what is being worked on.';
+
+    if (geminiKey) {
+        try {
+            console.log('👁️ Vision via Gemini');
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: instruction },
+                            { inline_data: { mime_type: mimeType, data: imageBase64 } },
+                        ],
+                    }],
+                }),
+            });
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text;
+        } catch (e) { console.error('Gemini Vision Error:', e.message); }
+    }
+
+    if (chatgptKey) {
+        try {
+            console.log('👁️ Vision via OpenAI');
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${chatgptKey}` },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: instruction },
+                            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+                        ],
+                    }],
+                    max_tokens: 400,
+                }),
+            });
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content;
+            if (text) return text;
+        } catch (e) { console.error('OpenAI Vision Error:', e.message); }
+    }
+
+    throw new Error('Image analysis needs a Gemini or ChatGPT API key — add one in Settings → AI.');
+};
+
+/**
  * Specialized: Analyze a list of tasks for prioritization
  */
 const analyzeTasks = async (tasks, config = {}) => {
@@ -167,6 +227,7 @@ Return ONLY a valid JSON object with this structure:
 
 module.exports = {
     generateText,
+    analyzeImage,
     analyzeTasks,
     summarize,
     refineTranscript,

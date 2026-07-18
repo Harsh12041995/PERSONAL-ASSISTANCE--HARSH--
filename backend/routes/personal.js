@@ -55,6 +55,7 @@ router.put('/settings', p.saveSettings);
 // ── AI Intelligence ──────────────────────────────────────────────────────────
 router.get('/intelligence/dashboard', p.getAiDashboardInsights);
 router.post('/intelligence/refine', p.refineTranscript);
+router.post('/intelligence/analyze-image', p.analyzeImage);
 
 // ── Journal ───────────────────────────────────────────────────────────────────
 router.get('/journal', p.getJournals);

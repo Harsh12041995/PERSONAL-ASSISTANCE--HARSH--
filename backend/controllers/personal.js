@@ -26,6 +26,14 @@ const automationService = require('../services/automationService');
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
 const fail = (res, err, status = 500) => res.status(status).json({ success: false, error: err.message || err });
+const notFound = (res, msg = 'Not found') => res.status(404).json({ success: false, error: msg });
+
+// Strip identity/ownership fields from a client-supplied update body so a
+// caller can never reassign ownership or overwrite timestamps via mass-assignment.
+const sanitize = (body = {}) => {
+    const { userId, _id, id, __v, createdAt, updatedAt, ...rest } = body;
+    return rest;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CAPTURES
@@ -56,10 +64,10 @@ exports.updateCapture = async (req, res) => {
     try {
         const capture = await Capture.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
-        if (!capture) return fail(res, 'Capture not found', 404);
+        if (!capture) return notFound(res, 'Capture not found');
         ok(res, capture);
     } catch (e) { fail(res, e); }
 };
@@ -93,9 +101,10 @@ exports.updateTask = async (req, res) => {
     try {
         const task = await Task.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
+        if (!task) return notFound(res, 'Task not found');
         ok(res, task);
     } catch (e) { fail(res, e); }
 };
@@ -166,9 +175,10 @@ exports.updateNote = async (req, res) => {
     try {
         const note = await Knowledge.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
+        if (!note) return notFound(res, 'Note not found');
         ok(res, note);
     } catch (e) { fail(res, e); }
 };
@@ -214,9 +224,10 @@ exports.updateGoal = async (req, res) => {
     try {
         const goal = await Goal.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
+        if (!goal) return notFound(res, 'Goal not found');
         ok(res, goal);
     } catch (e) { fail(res, e); }
 };
@@ -310,6 +321,23 @@ exports.refineTranscript = async (req, res) => {
         const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
         const refined = await aiService.refineTranscript(text, config);
         ok(res, refined);
+    } catch (e) { fail(res, e); }
+};
+
+// Vision: analyze a camera/screen frame captured by the Sage studio.
+exports.analyzeImage = async (req, res) => {
+    try {
+        const { image, mimeType, prompt } = req.body;
+        if (!image) return fail(res, 'No image provided', 400);
+
+        // Accept both raw base64 and data-URL form; keep payloads sane.
+        const base64 = String(image).replace(/^data:[^;]+;base64,/, '');
+        if (base64.length > 8_000_000) return fail(res, 'Image too large — use a smaller frame.', 413);
+
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+        const analysis = await aiService.analyzeImage(base64, mimeType || 'image/jpeg', prompt, config);
+        ok(res, analysis);
     } catch (e) { fail(res, e); }
 };
 // ─── Export all data ──────────────────────────────────────────────────────────
@@ -415,17 +443,17 @@ exports.saveCareerProfile = async (req, res) => {
 
 exports.getJobs = async (req, res) => { try { ok(res, await Job.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
 exports.createJob = async (req, res) => { try { ok(res, await Job.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateJob = async (req, res) => { try { ok(res, await Job.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateJob = async (req, res) => { try { const d = await Job.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Job not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteJob = async (req, res) => { try { await Job.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getCerts = async (req, res) => { try { ok(res, await Certification.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
 exports.createCert = async (req, res) => { try { ok(res, await Certification.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateCert = async (req, res) => { try { ok(res, await Certification.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateCert = async (req, res) => { try { const d = await Certification.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Certification not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteCert = async (req, res) => { try { await Certification.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getSkills = async (req, res) => { try { ok(res, await Skill.find({ userId: req.user._id }).sort({ level: -1 })); } catch (e) { fail(res, e); } };
 exports.createSkill = async (req, res) => { try { ok(res, await Skill.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateSkill = async (req, res) => { try { ok(res, await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateSkill = async (req, res) => { try { const d = await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Skill not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteSkill = async (req, res) => { try { await Skill.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.processCv = async (req, res) => {
@@ -496,12 +524,12 @@ exports.matchJob = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.getContacts = async (req, res) => { try { ok(res, await Contact.find({ userId: req.user._id }).sort({ lastTalked: 1 })); } catch (e) { fail(res, e); } };
 exports.createContact = async (req, res) => { try { ok(res, await Contact.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateContact = async (req, res) => { try { ok(res, await Contact.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateContact = async (req, res) => { try { const d = await Contact.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Contact not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteContact = async (req, res) => { try { await Contact.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getContentIdeas = async (req, res) => { try { ok(res, await ContentIdea.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
 exports.createContentIdea = async (req, res) => { try { ok(res, await ContentIdea.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateContentIdea = async (req, res) => { try { ok(res, await ContentIdea.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateContentIdea = async (req, res) => { try { const d = await ContentIdea.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Idea not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteContentIdea = async (req, res) => { try { await ContentIdea.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getSocialPlatforms = async (req, res) => { try { ok(res, await SocialPlatform.find({ userId: req.user._id })); } catch (e) { fail(res, e); } };
@@ -527,7 +555,11 @@ exports.createCalendarEvent = async (req, res) => {
     try { ok(res, await CalendarEvent.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
 };
 exports.updateCalendarEvent = async (req, res) => {
-    try { ok(res, await CalendarEvent.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+    try {
+        const ev = await CalendarEvent.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true });
+        if (!ev) return notFound(res, 'Event not found');
+        ok(res, ev);
+    } catch (e) { fail(res, e); }
 };
 exports.deleteCalendarEvent = async (req, res) => {
     try { await CalendarEvent.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
@@ -599,7 +631,11 @@ exports.createWorkflowQueueItem = async (req, res) => {
     try { ok(res, await WorkflowQueueItem.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
 };
 exports.updateWorkflowQueueItem = async (req, res) => {
-    try { ok(res, await WorkflowQueueItem.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+    try {
+        const d = await WorkflowQueueItem.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true });
+        if (!d) return notFound(res, 'Queue item not found');
+        ok(res, d);
+    } catch (e) { fail(res, e); }
 };
 exports.deleteWorkflowQueueItem = async (req, res) => {
     try { await WorkflowQueueItem.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
@@ -612,7 +648,11 @@ exports.createWorkflowDMActivity = async (req, res) => {
     try { ok(res, await WorkflowDMActivity.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
 };
 exports.updateWorkflowDMActivity = async (req, res) => {
-    try { ok(res, await WorkflowDMActivity.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+    try {
+        const d = await WorkflowDMActivity.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true });
+        if (!d) return notFound(res, 'DM activity not found');
+        ok(res, d);
+    } catch (e) { fail(res, e); }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

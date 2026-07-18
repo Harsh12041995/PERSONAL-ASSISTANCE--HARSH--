@@ -17,6 +17,12 @@ pids
 .env
 .env.*    # Optional: ignore all env-specific files like .env.development, .env.local
 
+# Dev scratch files that may contain live credentials — never commit
+backend/test-connection.js
+
+# Generated reports (local only)
+docs/reports/
+
 # Build output
 build
 dist

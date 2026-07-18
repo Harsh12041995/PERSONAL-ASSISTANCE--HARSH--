@@ -1,0 +1,43 @@
+name: Deploy Frontend (Netlify)
+
+# OPTIONAL / ADVANCED. The simplest path is Netlify's native Git integration
+# (connect the repo once in the Netlify UI → every push to main deploys, every
+# PR gets a preview URL automatically). Use this workflow only if you prefer
+# CI-driven deploys. It requires two repo secrets:
+#   NETLIFY_AUTH_TOKEN  — from Netlify → User settings → Applications
+#   NETLIFY_SITE_ID     — from Netlify → Site settings → Site information
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - name: Install
+        run: yarn install --immutable
+      - name: Build
+        run: yarn build
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: dist
+          # On PRs this creates a unique preview URL; on main it deploys to prod.
+          production-deploy: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+          deploy-message: "Deploy from GitHub Actions (${{ github.sha }})"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

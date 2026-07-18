@@ -1,4 +1,5 @@
 const ChatMessage = require('../models/ChatMessage');
+const ChatConversation = require('../models/ChatConversation');
 const UserSettings = require('../models/UserSettings');
 const aiService = require('../utils/aiService');
 
