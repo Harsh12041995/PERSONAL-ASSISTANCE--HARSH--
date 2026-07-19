@@ -199,6 +199,17 @@ Everything here is "the code doesn't do what it plainly intended." Fix as one ba
 
 ---
 
+## Phase 5 — Product-grade: make it a daily-use app (open-source powered)
+
+Turn the portal from a website into a real product people open every day. Each pack is independently shippable and verified.
+
+- [x] **5.1 Mobile app (PWA): installable + offline + push.** `vite-plugin-pwa` (Workbox) manifest + offline precache via a custom injectManifest service worker (`src/sw.ts`); `web-push` backend (VAPID) — `PushSubscription` model, `/personal/push/{vapid,subscribe,unsubscribe,test}` endpoints, `services/push.js` `sendToUser`; wired into `contact-followups` + new `habit-reminder` (21:00) scheduler jobs; **App & Notifications** card in Settings (install prompt + enable/test). *Accept:* installs to home screen, loads offline, a test push arrives; overdue-contact + un-logged-habit jobs push. ✅ built (SW `/sw.js`, manifest, 142 precached), 10/10 endpoint harness PASS, browser-verified SW registration + manifest + icons.
+- [ ] **5.2 Smart Capture (chrono-node NLP).** Natural-language parse of the capture box ("gym tomorrow 6am", "rent 15000 monthly 1st", "call Sam friday") → date/time/recurrence/amount extraction; smart-suggestion banner that one-tap creates the right record (event / task-with-due / recurring finance). *Accept:* typing a dated phrase offers the correct record type pre-filled.
+- [ ] **5.3 Focus & Streaks (pomodoro + gamification).** `FocusSession` model + `/focus` endpoints; Pomodoro timer page with task picker, session log, today's total; gamification (XP/level/streak/achievements) derived from real activity + a stats card. *Accept:* a completed focus session logs time; XP/level reflects real tasks/habits/focus.
+- [ ] **5.4 Daily Rituals (morning/evening/weekly).** `DailyRitual` model + endpoints; guided morning-plan (top-3 priorities + today's tasks/events), evening reflection (wins/gratitude/tomorrow), weekly review aggregation. *Accept:* setting a morning plan persists; evening reflection saves; weekly view aggregates the week.
+
+---
+
 ## Standing quality gates (every phase)
 
 - `corepack yarn build` green; eslint clean on touched files (~115 pre-existing errors in untouched `src/services/*`/`src/types/*` are baseline — don't add to them); `node --check` on touched backend files.

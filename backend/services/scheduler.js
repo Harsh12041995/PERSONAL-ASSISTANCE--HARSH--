@@ -13,6 +13,7 @@ const { runForNewPosts } = require('./staff/ghostwriter');
 const { runPortfolioReview } = require('./staff/analyst');
 const { runAllEnabled } = require('./ingest/rss');
 const { generateFollowUpReminders } = require('./followUps');
+const { generateHabitReminder } = require('./reminders');
 
 const MINUTE_MS = 60 * 1000;
 
@@ -55,6 +56,11 @@ const JOBS = [
         name: 'contact-followups',
         at: '09:00',
         run: () => forEachUser('contact-followups', (id) => generateFollowUpReminders(id)),
+    },
+    {
+        name: 'habit-reminder',
+        at: '21:00',
+        run: () => forEachUser('habit-reminder', (id) => generateHabitReminder(id)),
     },
 ];
 

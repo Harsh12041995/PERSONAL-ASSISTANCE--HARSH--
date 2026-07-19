@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { settingsApi, IUserSettings } from '../services/personalApi';
+import PwaSettings from '../components/PwaSettings';
 
 const DEFAULTS: IUserSettings = {
     displayName: 'User', bio: 'Building my personal command center 🚀',
@@ -160,6 +161,9 @@ export default function SettingsPage() {
                     {saved ? '✓ Saved to Atlas!' : 'Save Changes'}
                 </button>
             </div>
+
+            {/* ── Install app + push notifications ── */}
+            <PwaSettings />
 
             {/* ── Profile ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

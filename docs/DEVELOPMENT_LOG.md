@@ -6,6 +6,23 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 5.1: PWA — installable + offline + push ([task.md](../task.md) Phase 5)
+
+Turns the portal into a real mobile-installable app. Branch `feat/phase-5-product`.
+
+### Added
+- **Installable PWA**: `vite-plugin-pwa` (`injectManifest`) with a web manifest (name/theme/icons, `display: standalone`) and a custom service worker (`src/sw.ts`) doing Workbox precache (offline app shell, 142 entries) + push/notification-click handling. Generated branded maskable icons (192/512/180) via a dependency-free PNG encoder (`public/icons/*`). iOS/theme meta tags in `index.html`; dedicated `tsconfig.worker.json` so the SW type-checks with WebWorker libs (excluded from the app tsconfig).
+- **Web Push backend**: `web-push` + VAPID env (`VAPID_PUBLIC_KEY/PRIVATE_KEY/SUBJECT`), `PushSubscription` model (endpoint-unique, upsert on re-subscribe), `services/push.js` (`sendToUser` with dead-subscription pruning on 404/410), `controllers/push.js` + routes `/personal/push/{vapid,subscribe,unsubscribe,test}`. Disabled gracefully (endpoints report unavailable) when VAPID keys aren't set.
+- **Reminders over push**: `contact-followups` job now also pushes; new `services/reminders.js` + `habit-reminder` scheduler job (21:00) nudges when no habit is logged that day (dedup'd via unread Notification check).
+- **Frontend**: `services/push.ts` (feature-detect, permission, subscribe/unsubscribe lifecycle), `pushApi` client, and an **App & Notifications** card in Settings (`components/PwaSettings.tsx`) with install prompt (`beforeinstallprompt`), enable/disable toggle, and send-test.
+
+### Verification
+- `corepack yarn build` green — PWA emits `sw.js`, `manifest.webmanifest`, `registerSW.js`; 142 precached entries.
+- Backend harness (supertest, scratch DB `ceostest`, **10/10 PASS**): vapid reflects env; subscribe stores + upserts (no dup); bad payload 400; `sendToUser` no-op when disabled; unsubscribe removes; unauthed 401. VAPID-enabled check confirms `push.isEnabled()` flips true with keys.
+- Browser (vite preview): service worker registered (`/sw.js`), manifest valid (name + 3 icons), icons load, `PushManager` present. Only console errors are expected API network errors (preview has no backend proxy).
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 4: growth bets 4.1–4.4 ([task.md](../task.md) Phase 4)
 
 Phase 4 items 4.1–4.4 on branch `fix/security-and-phase-4` (continues the security work above). Items 4.5–4.8 (career kanban, real Meta/Drive integration, recurring events, scale pass) remain open.

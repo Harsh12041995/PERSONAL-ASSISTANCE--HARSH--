@@ -5,6 +5,7 @@
 
 const Contact = require('../models/Contact');
 const Notification = require('../models/Notification');
+const push = require('./push');
 
 const daysSince = (d) => {
     if (!d) return 999;
@@ -24,12 +25,10 @@ async function generateFollowUpReminders(userId) {
         const existing = await Notification.findOne({ userId, title, isRead: false });
         if (existing) continue;
 
-        await Notification.create({
-            userId,
-            title,
-            message: `It's been ${daysSince(c.lastTalked)} days since you last talked to ${c.name}. Time to reconnect.`,
-            type: 'warning',
-        });
+        const body = `It's been ${daysSince(c.lastTalked)} days since you last talked to ${c.name}. Time to reconnect.`;
+        await Notification.create({ userId, title, message: body, type: 'warning' });
+        // Best-effort push (no-op when VAPID keys aren't configured).
+        push.sendToUser(userId, { title, body, url: '/social', tag: `followup-${c._id}` }).catch(() => { });
         created += 1;
     }
     return { created };

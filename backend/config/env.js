@@ -57,6 +57,12 @@ const EnvSchema = z.object({
     // Shared secret for machine-to-machine cron calls (X-Service-Token).
     // Set this on serverless deploys where the in-process scheduler can't run.
     SERVICE_TOKEN: z.string().default(''),
+
+    // Web Push (VAPID). Generate once with `npx web-push generate-vapid-keys`.
+    // Empty => push is disabled and the endpoints report unavailable (no crash).
+    VAPID_PUBLIC_KEY: z.string().default(''),
+    VAPID_PRIVATE_KEY: z.string().default(''),
+    VAPID_SUBJECT: z.string().default('mailto:admin@example.com'),
 });
 
 /**

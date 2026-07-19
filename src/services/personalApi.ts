@@ -43,6 +43,17 @@ export const captureApi = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+export interface IPushSub { endpoint: string; keys: { p256dh: string; auth: string }; }
+export const pushApi = {
+    vapid: (): Promise<{ enabled: boolean; publicKey: string }> => api.get('/push/vapid').then(data),
+    subscribe: (sub: IPushSub) => api.post('/push/subscribe', sub).then(data),
+    unsubscribe: (endpoint: string) => api.post('/push/unsubscribe', { endpoint }).then(data),
+    test: () => api.post('/push/test').then(data),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  TASKS
 // ═══════════════════════════════════════════════════════════════════════════════
 export interface ITask {

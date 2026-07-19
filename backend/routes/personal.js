@@ -1,6 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const p = require('../controllers/personal');
+const pushCtrl = require('../controllers/push');
+
+// ── Web Push (notifications) ───────────────────────────────────────────────────
+router.get('/push/vapid', pushCtrl.getVapid);
+router.post('/push/subscribe', pushCtrl.subscribe);
+router.post('/push/unsubscribe', pushCtrl.unsubscribe);
+router.post('/push/test', pushCtrl.sendTest);
 
 // ── Captures ─────────────────────────────────────────────────────────────────
 router.get('/captures', p.getCaptures);
