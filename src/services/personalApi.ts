@@ -31,6 +31,9 @@ export interface ICapture {
     text: string; emoji: string; createdAt: string;
     rawText?: string;
     isRefined?: boolean;
+    source?: string;
+    archivedAt?: string | null;
+    convertedTo?: { kind: 'task' | 'goal' | 'event' | null; id: string };
 }
 export const captureApi = {
     getAll: () => api.get('/captures').then(data),
@@ -60,6 +63,7 @@ export const taskApi = {
 export interface ITransaction {
     _id: string; type: 'income' | 'expense'; amount: number;
     category: string; note: string; date: string; emoji: string; createdAt: string;
+    recurrence?: 'none' | 'weekly' | 'monthly'; recurringId?: string | null; lastRun?: string;
 }
 export interface IBudget { _id: string; category: string; limit: number; emoji: string; period: string; color: string; }
 export const financeApi = {
@@ -113,6 +117,8 @@ export interface IHealthDay {
 export const healthApi = {
     getDay: (date: string) => api.get(`/health/${date}`).then(data),
     saveDay: (date: string, d: Partial<IHealthDay>) => api.put(`/health/${date}`, d).then(data),
+    getRange: (from: string, to: string): Promise<IHealthDay[]> =>
+        api.get(`/health?from=${from}&to=${to}`).then(data),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -169,10 +175,14 @@ export const careerApi = {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SOCIAL
 // ═══════════════════════════════════════════════════════════════════════════════
+export interface IInteraction {
+    date?: string; type: 'call' | 'message' | 'meeting' | 'email' | 'note'; note: string;
+}
 export interface IContact {
     _id: string; name: string; relationship: string; phone: string; email: string;
     lastTalked: string; notes: string; followUpDays: number; tags: string[];
     socialLinks: { instagram: string; linkedin: string; twitter: string; };
+    interactions?: IInteraction[];
 }
 export interface IContentIdea {
     _id: string; title: string; platform: string; status: string;
@@ -235,6 +245,7 @@ export interface IUserSettings {
         };
     };
     geminiApiKey: string; chatgptApiKey: string; currency: string; dateFormat: string;
+    habits?: { key: string; label?: string; emoji?: string }[];
 }
 export const settingsApi = {
     get: () => api.get('/settings').then(data),

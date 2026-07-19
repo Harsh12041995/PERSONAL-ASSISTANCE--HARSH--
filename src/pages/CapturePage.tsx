@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { captureApi, ICapture } from '../services/personalApi';
+import { toast } from 'react-toastify';
+import { captureApi, taskApi, goalApi, calendarApi, ICapture } from '../services/personalApi';
 import { CAPTURE_TYPES, CaptureType, captureMeta } from '../constants/capture';
+import { localToday } from '../utils/date';
+import { notifyError } from '../utils/notify';
 import VoiceTranscriber from '../components/VoiceTranscriber';
+
+const PAGE_SIZE = 30;
 
 export default function CapturePage() {
     const [captures, setCaptures] = useState<ICapture[]>([]);
@@ -61,7 +66,40 @@ export default function CapturePage() {
         } catch { setError('Failed to delete.'); }
     };
 
-    const filtered = filterType === 'All' ? captures : captures.filter(c => c.type === filterType);
+    // ── Archive ────────────────────────────────────────────────────────────────
+    const handleArchive = async (cap: ICapture) => {
+        try {
+            const updated = await captureApi.update(cap._id, { archivedAt: new Date().toISOString() });
+            if (updated) setCaptures(prev => prev.map(c => c._id === cap._id ? updated : c));
+        } catch (e) { notifyError(e, 'Failed to archive.'); }
+    };
+
+    // ── Convert → Task / Goal / Event ───────────────────────────────────────────
+    const handleConvert = async (cap: ICapture, kind: 'task' | 'goal' | 'event') => {
+        try {
+            let id = '';
+            if (kind === 'task') {
+                const t = await taskApi.create({ title: cap.text, priority: 'medium', area: 'Personal', tab: 'today', done: false, dueDate: null });
+                id = t._id;
+            } else if (kind === 'goal') {
+                const g = await goalApi.create({ title: cap.text, area: 'Personal', emoji: '🎯', progress: 0, deadline: null, milestones: [] });
+                id = g._id;
+            } else {
+                const ev = await calendarApi.create({ title: cap.text, start: localToday(), end: localToday(), calendar: 'Primary', allDay: true });
+                id = ev._id;
+            }
+            // Link the capture to its new record and archive it out of the inbox.
+            const updated = await captureApi.update(cap._id, { convertedTo: { kind, id }, archivedAt: new Date().toISOString() });
+            if (updated) setCaptures(prev => prev.map(c => c._id === cap._id ? updated : c));
+            toast.success(`Converted to ${kind} ✓`);
+        } catch (e) { notifyError(e, `Couldn't convert to ${kind}.`); }
+    };
+
+    const [showArchived, setShowArchived] = useState(false);
+    const [page, setPage] = useState(1);
+    const byArchive = captures.filter(c => showArchived ? c.archivedAt : !c.archivedAt);
+    const byType = filterType === 'All' ? byArchive : byArchive.filter(c => c.type === filterType);
+    const filtered = byType.slice(0, page * PAGE_SIZE);
     const getTypeConf = (type: CaptureType) => CAPTURE_TYPES.find(c => c.type === type)!;
     const relTime = (iso: string) => {
         const diff = Date.now() - new Date(iso).getTime();
@@ -139,6 +177,10 @@ export default function CapturePage() {
                             </button>
                         );
                     })}
+                    <button onClick={() => { setShowArchived(s => !s); setPage(1); }}
+                        className={`ml-auto flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${showArchived ? 'bg-gray-800 text-white border-gray-800' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}>
+                        🗄 {showArchived ? 'Archived' : 'Show archived'}
+                    </button>
                 </div>
 
                 {loading ? (
@@ -164,7 +206,18 @@ export default function CapturePage() {
                                             <span className="text-[10px] text-gray-400">{relTime(cap.createdAt)}</span>
                                         </div>
                                         <p className="text-sm text-gray-800 leading-snug">{cap.text}</p>
+                                        {cap.convertedTo?.kind && (
+                                            <span className="inline-block mt-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">→ converted to {cap.convertedTo.kind}</span>
+                                        )}
                                     </div>
+                                    {!cap.archivedAt && !cap.convertedTo?.kind && (
+                                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
+                                            <button onClick={() => handleConvert(cap, 'task')} title="Convert to task" className="p-1 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 text-xs">✅</button>
+                                            <button onClick={() => handleConvert(cap, 'goal')} title="Convert to goal" className="p-1 rounded-lg text-gray-400 hover:text-pink-600 hover:bg-pink-50 text-xs">🎯</button>
+                                            <button onClick={() => handleConvert(cap, 'event')} title="Convert to calendar event" className="p-1 rounded-lg text-gray-400 hover:text-sky-600 hover:bg-sky-50 text-xs">📅</button>
+                                            <button onClick={() => handleArchive(cap)} title="Archive" className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-xs">🗄</button>
+                                        </div>
+                                    )}
                                     <button onClick={() => handleDelete(cap._id)}
                                         className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -172,6 +225,11 @@ export default function CapturePage() {
                                 </div>
                             );
                         })}
+                        {byType.length > filtered.length && (
+                            <button onClick={() => setPage(p => p + 1)} className="w-full py-2 rounded-xl text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors">
+                                Load more ({byType.length - filtered.length} more)
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

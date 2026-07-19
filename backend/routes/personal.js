@@ -40,6 +40,7 @@ router.put('/goals/:id', p.updateGoal);
 router.delete('/goals/:id', p.deleteGoal);
 
 // ── Health / Habits ───────────────────────────────────────────────────────────
+router.get('/health', p.getHealthRange);
 router.get('/health/:date', p.getHealthDay);
 router.post('/health/:date', p.saveHealthDay);
 router.put('/health/:date', p.saveHealthDay);

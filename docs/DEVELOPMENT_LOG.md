@@ -6,6 +6,25 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 4: growth bets 4.1–4.4 ([task.md](../task.md) Phase 4)
+
+Phase 4 items 4.1–4.4 on branch `fix/security-and-phase-4` (continues the security work above). Items 4.5–4.8 (career kanban, real Meta/Drive integration, recurring events, scale pass) remain open.
+
+### Added
+- **Health trends & custom habits (4.1)**: `GET /health?from=&to=` range endpoint (`getHealthRange`) + `healthApi.getRange`. `HealthPage` gained a **30-day trends** panel — energy & mood bars plus a habit-completion heatmap — and moved the habit list into `UserSettings.habits[]` with a **Manage** mode to add/remove custom habits (falls back to the 6 built-in defaults when empty).
+- **Finance power (4.2)**: recurring transactions — `recurrence`/`recurringId`/`lastRun` on `Finance`; `materializeRecurring()` seeds concrete occurrences from a template on read (idempotent, local-TZ date math, cascade-delete of occurrences when the rule is removed). `FinancePage` gained a **Recurring Rules** section, category + from/to **date filters**, **Load-more** pagination, and a client-side **CSV export**.
+- **Contacts CRM-lite (4.3)**: `interactions[]` on `Contact` + an expandable per-contact **interaction log** (logging a touch prepends history and updates `lastTalked`). Add-contact form now writes the previously-dead `email`, `tags`, and `socialLinks` fields. New `services/followUps.js` + `contact-followups` scheduler job (09:00) creates deduplicated `Notification`s for overdue contacts.
+- **Capture lifecycle (4.4)**: `source` / `archivedAt` / `convertedTo` on `Capture`; row-level **Convert → Task / Goal / Event** actions (creates the target record, links back via `convertedTo`, archives the capture), an **archive** action, a converted-to badge, a **Show archived** toggle, and **Load-more** pagination.
+
+### Deferred
+- 4.3 `snapshots[]` follower-trend history (the `following:0`-on-save bug was already fixed in Phase 1).
+
+### Verification
+- `corepack yarn build` green (fixed a missing `dueDate` on the capture→task convert). `node --check` on all touched backend files. eslint on touched pages clean except one **pre-existing** baseline `any` (`CapturePage.tsx:143`, untouched keyboard-shortcut handler).
+- Runtime harness (scratch DB `ceostest`, 10 assertions, all PASS): monthly template seeds 3–4 occurrences → idempotent on re-run → cascade-deletes with the template; health range returns only in-window docs, sorted; follow-up reminder created for the overdue contact only, no duplicate on re-run; interaction log persists.
+
+---
+
 ## [unreleased] — 2026-07-19 — Security: password hashing (bcrypt) + migration
 
 Closes the plaintext-password issue flagged across Phases 0 and 3. Branch `fix/security-and-phase-4`.

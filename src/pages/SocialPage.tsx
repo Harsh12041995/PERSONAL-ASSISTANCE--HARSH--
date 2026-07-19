@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { socialApi, settingsApi, IContact, IContentIdea, ISocialPlatform, IUserSettings } from '../services/personalApi';
+import { socialApi, settingsApi, IContact, IContentIdea, ISocialPlatform, IUserSettings, IInteraction } from '../services/personalApi';
 import { localToday } from '../utils/date';
 import { notifyError } from '../utils/notify';
 
@@ -52,16 +52,35 @@ export default function SocialPage() {
     useEffect(() => { settingsApi.get().then(setSettings).catch(() => setSettings(null)); }, []);
 
     // ── Contact handlers ──────────────────────────────────────────────────────
-    const [cForm, setCForm] = useState({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
+    const emptyCForm = { name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', email: '', followUpDays: 14, tags: '', instagram: '', linkedin: '', twitter: '' };
+    const [cForm, setCForm] = useState(emptyCForm);
     const [cNew, setCNew] = useState(false);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    // Per-contact "log interaction" draft.
+    const [logDraft, setLogDraft] = useState<{ type: IInteraction['type']; note: string }>({ type: 'note', note: '' });
     const addContact = async () => {
         if (!cForm.name) return;
         try {
-            const created = await socialApi.createContact({ ...cForm, email: '', tags: [], socialLinks: { instagram: '', linkedin: '', twitter: '' } } as Omit<IContact, '_id'>);
+            const created = await socialApi.createContact({
+                name: cForm.name, relationship: cForm.relationship, lastTalked: cForm.lastTalked,
+                notes: cForm.notes, phone: cForm.phone, email: cForm.email, followUpDays: cForm.followUpDays,
+                tags: cForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+                socialLinks: { instagram: cForm.instagram, linkedin: cForm.linkedin, twitter: cForm.twitter },
+            } as Omit<IContact, '_id'>);
             setContacts(prev => [created, ...prev]);
-            setCForm({ name: '', relationship: 'Friend', lastTalked: today(), notes: '', phone: '', followUpDays: 14 });
+            setCForm(emptyCForm);
             setCNew(false);
         } catch (e) { notifyError(e, 'Failed to add contact.'); }
+    };
+    const logInteraction = async (c: IContact) => {
+        if (!logDraft.note.trim()) return;
+        const entry: IInteraction = { type: logDraft.type, note: logDraft.note.trim(), date: today() };
+        const interactions = [entry, ...(c.interactions || [])];
+        try {
+            const updated = await socialApi.updateContact(c._id, { interactions, lastTalked: today() });
+            if (updated) setContacts(prev => prev.map(x => x._id === c._id ? updated : x));
+            setLogDraft({ type: 'note', note: '' });
+        } catch (e) { notifyError(e, 'Failed to log interaction.'); }
     };
     const deleteContact = async (id: string) => {
         try {
@@ -232,6 +251,20 @@ export default function SocialPage() {
                                 <input value={cForm.phone} onChange={e => setCForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone"
                                     className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
                             </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <input type="email" value={cForm.email} onChange={e => setCForm(p => ({ ...p, email: e.target.value }))} placeholder="Email"
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <input value={cForm.tags} onChange={e => setCForm(p => ({ ...p, tags: e.target.value }))} placeholder="Tags (comma-separated)"
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <input value={cForm.instagram} onChange={e => setCForm(p => ({ ...p, instagram: e.target.value }))} placeholder="Instagram"
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <input value={cForm.linkedin} onChange={e => setCForm(p => ({ ...p, linkedin: e.target.value }))} placeholder="LinkedIn"
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                                <input value={cForm.twitter} onChange={e => setCForm(p => ({ ...p, twitter: e.target.value }))} placeholder="Twitter / X"
+                                    className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                            </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <select value={cForm.relationship} onChange={e => setCForm(p => ({ ...p, relationship: e.target.value }))}
                                     className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
@@ -256,39 +289,79 @@ export default function SocialPage() {
                         {filtered.map((c, i) => {
                             const ds = daysSince(c.lastTalked);
                             const isOverdue = ds > (c.followUpDays || 14);
+                            const isOpen = expandedId === c._id;
                             return (
-                                <div key={c._id} className="group flex items-center gap-3 px-5 py-4 hover:bg-gray-50">
-                                    <div className={`w-10 h-10 rounded-xl ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                                        {c.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-gray-800">{c.name}</p>
-                                        <p className="text-xs text-gray-400">
-                                            {c.phone && `${c.phone} · `}
-                                            Last: {c.lastTalked ? `${ds}d ago` : 'never'}
-                                            {isOverdue && <span className="text-red-500 ml-1">· Follow up!</span>}
-                                        </p>
-                                        {c.notes && <p className="text-xs text-gray-500 truncate">💬 {c.notes}</p>}
-                                    </div>
-                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${REL_BADGE[c.relationship] || 'bg-gray-100 text-gray-600'}`}>{c.relationship}</span>
-                                    {settings?.integrations?.whatsappEnabled && (
-                                        <button
-                                            onClick={() => openWhatsApp(c)}
-                                            className="opacity-0 group-hover:opacity-100 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all"
-                                        >
-                                            WhatsApp
+                                <div key={c._id}>
+                                    <div className="group flex items-center gap-3 px-5 py-4 hover:bg-gray-50">
+                                        <div className={`w-10 h-10 rounded-xl ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                                            {c.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800">{c.name}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {c.phone && `${c.phone} · `}
+                                                {c.email && `${c.email} · `}
+                                                Last: {c.lastTalked ? `${ds}d ago` : 'never'}
+                                                {isOverdue && <span className="text-red-500 ml-1">· Follow up!</span>}
+                                            </p>
+                                            {c.tags && c.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {c.tags.map(t => <span key={t} className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full">#{t}</span>)}
+                                                </div>
+                                            )}
+                                            {c.notes && <p className="text-xs text-gray-500 truncate">💬 {c.notes}</p>}
+                                        </div>
+                                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${REL_BADGE[c.relationship] || 'bg-gray-100 text-gray-600'}`}>{c.relationship}</span>
+                                        <button onClick={() => { setExpandedId(isOpen ? null : c._id); setLogDraft({ type: 'note', note: '' }); }}
+                                            className="text-xs text-violet-600 bg-violet-50 px-2 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                                            📋 {c.interactions?.length ? c.interactions.length : ''} Log
                                         </button>
+                                        {settings?.integrations?.whatsappEnabled && (
+                                            <button onClick={() => openWhatsApp(c)}
+                                                className="opacity-0 group-hover:opacity-100 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all">
+                                                WhatsApp
+                                            </button>
+                                        )}
+                                        {settings?.integrations?.telegramEnabled && (
+                                            <button onClick={() => openTelegram(c)}
+                                                className="opacity-0 group-hover:opacity-100 text-xs text-sky-700 bg-sky-50 px-2 py-1 rounded-lg hover:bg-sky-100 transition-all">
+                                                Telegram
+                                            </button>
+                                        )}
+                                        <button onClick={() => touchContact(c._id)} className="opacity-0 group-hover:opacity-100 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all">✓ Talked</button>
+                                        <button onClick={() => deleteContact(c._id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all text-xs px-1">✕</button>
+                                    </div>
+                                    {isOpen && (
+                                        <div className="px-5 pb-4 bg-gray-50/60 border-t border-gray-100">
+                                            {/* Log new interaction */}
+                                            <div className="flex flex-wrap gap-2 pt-3">
+                                                <select value={logDraft.type} onChange={e => setLogDraft(d => ({ ...d, type: e.target.value as IInteraction['type'] }))}
+                                                    className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                                                    {(['note', 'call', 'message', 'meeting', 'email'] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                                <input value={logDraft.note} onChange={e => setLogDraft(d => ({ ...d, note: e.target.value }))}
+                                                    onKeyDown={e => { if (e.key === 'Enter') logInteraction(c); }}
+                                                    placeholder="What did you talk about?"
+                                                    className="flex-1 min-w-[160px] bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                                                <button onClick={() => logInteraction(c)} disabled={!logDraft.note.trim()}
+                                                    className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold disabled:opacity-40">Log</button>
+                                            </div>
+                                            {/* History */}
+                                            {c.interactions && c.interactions.length > 0 ? (
+                                                <div className="mt-3 space-y-1.5">
+                                                    {c.interactions.map((it, idx) => (
+                                                        <div key={idx} className="flex items-start gap-2 text-xs">
+                                                            <span className="text-gray-400 w-20 flex-shrink-0">{it.date}</span>
+                                                            <span className="font-medium text-violet-600 capitalize w-16 flex-shrink-0">{it.type}</span>
+                                                            <span className="text-gray-600">{it.note}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="mt-3 text-xs text-gray-400">No interactions logged yet.</p>
+                                            )}
+                                        </div>
                                     )}
-                                    {settings?.integrations?.telegramEnabled && (
-                                        <button
-                                            onClick={() => openTelegram(c)}
-                                            className="opacity-0 group-hover:opacity-100 text-xs text-sky-700 bg-sky-50 px-2 py-1 rounded-lg hover:bg-sky-100 transition-all"
-                                        >
-                                            Telegram
-                                        </button>
-                                    )}
-                                    <button onClick={() => touchContact(c._id)} className="opacity-0 group-hover:opacity-100 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all">✓ Talked</button>
-                                    <button onClick={() => deleteContact(c._id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all text-xs px-1">✕</button>
                                 </div>
                             );
                         })}

@@ -12,6 +12,7 @@ const { generateMorningBrief } = require('./staff/chiefOfStaff');
 const { runForNewPosts } = require('./staff/ghostwriter');
 const { runPortfolioReview } = require('./staff/analyst');
 const { runAllEnabled } = require('./ingest/rss');
+const { generateFollowUpReminders } = require('./followUps');
 
 const MINUTE_MS = 60 * 1000;
 
@@ -49,6 +50,11 @@ const JOBS = [
         name: 'rss-poll',
         everyMinutes: 60,
         run: () => runAllEnabled(),
+    },
+    {
+        name: 'contact-followups',
+        at: '09:00',
+        run: () => forEachUser('contact-followups', (id) => generateFollowUpReminders(id)),
     },
 ];
 

@@ -15,6 +15,12 @@ const ContactSchema = new mongoose.Schema({
         linkedin: { type: String, default: '' },
         twitter: { type: String, default: '' },
     },
+    // Lightweight CRM interaction log — most recent first is enforced in the UI.
+    interactions: [{
+        date: { type: String, default: () => new Date().toISOString().slice(0, 10) },
+        type: { type: String, enum: ['call', 'message', 'meeting', 'email', 'note'], default: 'note' },
+        note: { type: String, default: '' },
+    }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Contact', ContactSchema);

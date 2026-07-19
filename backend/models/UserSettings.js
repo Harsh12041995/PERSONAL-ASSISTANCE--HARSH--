@@ -55,6 +55,13 @@ const UserSettingsSchema = new mongoose.Schema({
     chatgptApiKey: { type: String, default: '' },
     currency: { type: String, default: 'INR' },
     dateFormat: { type: String, default: 'DD/MM/YYYY' },
+    // User-defined habits tracked on the Health page. Empty → the UI falls back
+    // to its built-in default habit set.
+    habits: [{
+        key: { type: String, required: true },
+        label: { type: String, default: '' },
+        emoji: { type: String, default: '✅' },
+    }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('UserSettings', UserSettingsSchema);

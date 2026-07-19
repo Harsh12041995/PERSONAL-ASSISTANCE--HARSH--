@@ -131,8 +131,50 @@ exports.analyzeTasks = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  FINANCE
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Local-timezone date helpers (avoid the UTC off-by-one that toISOString causes).
+const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const todayStr = () => fmtDate(new Date());
+const addPeriod = (dateStr, freq) => {
+    const [y, m, dd] = dateStr.split('-').map(Number);
+    const d = new Date(y, m - 1, dd);
+    if (freq === 'weekly') d.setDate(d.getDate() + 7);
+    else d.setMonth(d.getMonth() + 1); // monthly
+    return fmtDate(d);
+};
+
+// For each recurring template, create the concrete occurrences due since the last
+// run up to today. Idempotent: templates advance their lastRun so re-reads don't
+// duplicate. Guard caps runaway generation for very old / mis-set templates.
+const materializeRecurring = async (userId) => {
+    const today = todayStr();
+    const templates = await Finance.find({ userId, recurrence: { $ne: 'none' } });
+    for (const t of templates) {
+        let next = t.lastRun ? addPeriod(t.lastRun, t.recurrence) : t.date;
+        const toCreate = [];
+        let guard = 0;
+        while (next && next <= today && guard < 500) {
+            toCreate.push({
+                userId, type: t.type, amount: t.amount, category: t.category,
+                note: t.note, date: next, emoji: t.emoji, recurrence: 'none', recurringId: t._id,
+            });
+            next = addPeriod(next, t.recurrence);
+            guard += 1;
+        }
+        if (toCreate.length) {
+            await Finance.insertMany(toCreate);
+            t.lastRun = toCreate[toCreate.length - 1].date;
+            await t.save();
+        }
+    }
+};
+
+// Exposed for tests/tooling — normally invoked on read.
+exports._materializeRecurring = materializeRecurring;
+
 exports.getTransactions = async (req, res) => {
     try {
+        await materializeRecurring(req.user._id);
         const txns = await Finance.find({ userId: req.user._id }).sort({ date: -1, createdAt: -1 });
         ok(res, txns);
     } catch (e) { fail(res, e); }
@@ -140,8 +182,13 @@ exports.getTransactions = async (req, res) => {
 
 exports.createTransaction = async (req, res) => {
     try {
-        const { type, amount, category, note, date, emoji } = req.body;
-        const txn = await Finance.create({ userId: req.user._id, type, amount, category, note, date, emoji });
+        const { type, amount, category, note, date, emoji, recurrence } = req.body;
+        const txn = await Finance.create({
+            userId: req.user._id, type, amount, category, note, date, emoji,
+            recurrence: ['weekly', 'monthly'].includes(recurrence) ? recurrence : 'none',
+        });
+        // Immediately seed occurrences so a new recurring rule isn't invisible.
+        if (txn.recurrence !== 'none') await materializeRecurring(req.user._id);
         ok(res, txn);
     } catch (e) { fail(res, e); }
 };
@@ -160,7 +207,11 @@ exports.updateTransaction = async (req, res) => {
 
 exports.deleteTransaction = async (req, res) => {
     try {
-        await Finance.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+        const doc = await Finance.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+        // Deleting a recurring rule removes its generated occurrences too.
+        if (doc && doc.recurrence !== 'none') {
+            await Finance.deleteMany({ userId: req.user._id, recurringId: doc._id });
+        }
         ok(res, { deleted: req.params.id });
     } catch (e) { fail(res, e); }
 };
@@ -259,6 +310,21 @@ exports.getHealthDay = async (req, res) => {
         const { date } = req.params;   // YYYY-MM-DD
         const doc = await Health.findOne({ userId: req.user._id, date });
         ok(res, doc || null);
+    } catch (e) { fail(res, e); }
+};
+
+// Range fetch for trend charts. GET /health?from=YYYY-MM-DD&to=YYYY-MM-DD
+exports.getHealthRange = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const q = { userId: req.user._id };
+        if (from || to) {
+            q.date = {};
+            if (from) q.date.$gte = String(from);
+            if (to) q.date.$lte = String(to);
+        }
+        const docs = await Health.find(q).sort({ date: 1 }).limit(400);
+        ok(res, docs);
     } catch (e) { fail(res, e); }
 };
 
