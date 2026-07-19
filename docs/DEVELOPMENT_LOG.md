@@ -6,6 +6,27 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 2: honest modules ([task.md](../task.md) Phase 2)
+
+All 4 Phase 2 tasks on branch `fix/phase-2-honest-modules` (off Phase 1). Theme: kill the fakes; show the truth.
+
+### Changed
+- **Blogs → Reading Room** (`src/pages/BlogsPage.tsx` full rewrite): the 6 hardcoded fake articles are gone. Now lists the real RSS-ingested `BlogPost`s via `staffApi.listPosts` (source derived from each link's hostname, newest first, search + source filter) with a Sources panel to add/pull/delete feeds via `ingestApi` (same pipeline the Command Center uses). Honest empty state points to "add your first feed."
+- **Workflow Manager honesty** (`WorkflowManagerPage.tsx`): prominent **"⚠️ Simulation mode"** banner; the fake "Readiness %" replaced with a real setup **checklist** of what's actually configured; connections panel labeled "simulated / no OAuth yet"; "Success Blueprint" relabeled "🛣️ Roadmap to go live (not yet built)."
+- **Real DM triage** (`backend/services/automationService.js`): `runDMTriage` now reads the user's `dmRules.leadKeywords`/`urgentKeywords` from Settings and categorizes per-DM (lead keyword → `category:'lead'`; urgent keyword → `status:'escalated'`; else `acknowledged`) instead of blindly flipping everything to acknowledged.
+- **Workflow schema**: added `postedAt` + `publishedUrl` to `WorkflowQueueItem` (automation already wrote `postedAt`, silently dropped by strict mode).
+- **Settings truthfulness** (`SettingsPage.tsx`): the hardcoded "🟢 Atlas" badge replaced with a **live** reachability check polling `GET /api/health` every 15s (🟢 Online / 🔴 Offline / … Checking); removed the stale "Personal Space v3.0 — Phase 3 ✅" footer.
+- **Chat vs Agent differentiation** (`AiChatPage`, `AgentPage`, `PersonalSidebar`): honest titles ("AI Chat — ask & talk" vs "Agent — acts on your data"), a cross-link banner on each, sidebar renamed ("AI Chat" / "Agent (takes action)"). The misleading "Preview mode active" badge now states the real provider cascade (your cloud key vs local Ollama).
+
+### Notes
+- `browserWorkspace` config (dead surface flagged in the audit) is not rendered anywhere and isn't in the active frontend config default — left the harmless backend schema field rather than risk a migration; safe to delete later.
+
+### Verification
+- `yarn build` green; `node --check` on the two backend files; eslint clean on touched files (3 remaining `any` are pre-existing baseline on untouched lines).
+- Runtime-tested against a local Mongo scratch DB: seeded 3 "new" DMs + keyword rules, ran `POST /automation/run` → lead DM got `category:'lead'`, urgent DM got `status:'escalated'`, plain DM `acknowledged`; `GET /api/health` → 200. Both PASS.
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 1: data integrity & consistency ([task.md](../task.md) Phase 1)
 
 All 9 Phase 1 tasks on branch `fix/phase-1-consistency` (off Phase 0).

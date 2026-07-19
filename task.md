@@ -125,22 +125,22 @@ Everything here is "the code doesn't do what it plainly intended." Fix as one ba
 
 ## Phase 2 — Honest modules (kill the fakes)
 
-- [ ] **2.1 Blogs → Reading Room (real data).**
+- [x] **2.1 Blogs → Reading Room (real data).**
   **Files:** `src/pages/BlogsPage.tsx` (full rewrite — currently a static `BLOGS` array at 21-89 with zero API calls), reuse `staffApi.listPosts` + `ingestApi.listSources/createSource/runSource/deleteSource` from `src/services/staff.api.ts`
   **Do:** list ingested `BlogPost`s (title/source/date/link, newest first, search + source filter); a "Sources" panel to add/pull/delete RSS feeds (same API Command Center uses — keep both surfaces); honest empty state ("Add your first feed") instead of fake articles.
   **Accept:** add a real RSS URL → pull → posts render from Mongo; the six fake articles are gone from the codebase.
 
-- [ ] **2.2 Workflow Manager honesty pass + real triage.**
+- [x] **2.2 Workflow Manager honesty pass + real triage.**
   **Files:** `src/pages/WorkflowManagerPage.tsx` (connections panel 86-92, readiness 64-72, static "Success Blueprint" 194-203), `backend/services/automationService.js:59-77`, `backend/models/WorkflowQueueItem.js`
   **Do:** (a) label connections/automation "Simulation mode" with plain copy — toggles today have zero real integration behind them; (b) replace fake "Readiness %" with a simple checklist of what's actually configured; (c) make DM triage actually use `dmRules.leadKeywords`/`urgentKeywords` to categorize (today it bulk-flips `new→acknowledged` ignoring the rules the user typed); (d) add `postedAt`/`publishedUrl` fields to the schema (automation already writes `postedAt`, silently dropped by strict mode); (e) either render or delete the dead `browserWorkspace` config surface (modeled in `UserSettings.js:41-52`, typed in `personalApi.ts:277-288`, never rendered anywhere — **decision: delete** unless the user objects).
   **Accept:** a DM containing a lead keyword lands as `category:'lead'` after an automation run; queue items show a persisted postedAt.
 
-- [ ] **2.3 Settings truthfulness.**
+- [x] **2.3 Settings truthfulness.**
   **Files:** `src/pages/SettingsPage.tsx:393-425`
   **Do:** replace the hardcoded "🟢 Atlas · cluster0.bacgamo…" badge with a live check against `GET /health` (green/red for real); remove the stale "Personal Space v3.0 — Phase 3 ✅" footer; export copy fixed in 0.3.
   **Accept:** stop the backend → Settings badge turns red without a refresh loop.
 
-- [ ] **2.4 Chat/Agent differentiation copy (pre-merge step).**
+- [x] **2.4 Chat/Agent differentiation copy (pre-merge step).**
   **Files:** `src/components/PersonalSidebar.tsx`, `src/pages/AiChatPage.tsx`, `src/pages/AgentPage.tsx`
   **Do:** subtitle both pages honestly ("Chat — ask & talk" vs "Agent — acts on your data") + a cross-link banner on each. Also fix the misleading "Preview mode active" badge (`AiChatPage.tsx:39-54`) — the backend falls back to local Ollama, so absence of a cloud key ≠ preview.
   **Accept:** both pages state what they are and link to the other; badge reflects the actual provider cascade.

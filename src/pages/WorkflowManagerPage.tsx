@@ -65,15 +65,15 @@ export default function WorkflowManagerPage() {
     loadAll();
   }, []);
 
-  const readiness = useMemo(() => {
-    const connCount = Object.values(config.connections).filter(Boolean).length;
-    const ruleScore = config.dmRules.leadKeywords && config.dmRules.urgentKeywords ? 1 : 0;
-    const ioScore = config.ioPoints.driveInputFolderId && config.ioPoints.instagramOutputAccountId ? 1 : 0;
-    const queueScore = queue.length > 0 ? 1 : 0;
-    const dmScore = dmActivity.length > 0 ? 1 : 0;
-    const raw = connCount + ruleScore + ioScore + queueScore + dmScore;
-    return Math.round((raw / 7) * 100);
-  }, [config, queue.length, dmActivity.length]);
+  // An honest checklist of what's actually configured (replaces the old fake
+  // "Readiness %" that could read 100% with zero real connectivity).
+  const checklist = useMemo(() => [
+    { label: 'DM triage keywords set', done: !!(config.dmRules.leadKeywords || config.dmRules.urgentKeywords) },
+    { label: 'Drive input folder configured', done: !!config.ioPoints.driveInputFolderId },
+    { label: 'Instagram output account set', done: !!config.ioPoints.instagramOutputAccountId },
+    { label: 'At least one queued asset', done: queue.length > 0 },
+    { label: 'DM activity to triage', done: dmActivity.length > 0 },
+  ], [config, queue.length, dmActivity.length]);
 
   const saveConfig = async (next: IWorkflowConfig) => {
     setSaving(true);
@@ -220,12 +220,21 @@ export default function WorkflowManagerPage() {
           <p className="text-xs font-semibold uppercase tracking-widest text-cyan-100">Execution Hub</p>
           <h1 className="mt-1 text-3xl font-bold">Smart Workflow Manager</h1>
           <p className="mt-2 max-w-3xl text-sm text-cyan-100">
-            This module runs your social media operations: DM screening, Google Drive media ingestion, caption pipeline, and Instagram publishing queue.
+            Plan your social media operations: DM screening rules, a media queue, and a caption pipeline.
           </p>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm">
-            <span className="font-semibold">Readiness:</span>
-            <span>{readiness}%</span>
-            {saving && <span className="text-cyan-100">· Saving...</span>}
+          <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-400/15 px-3 py-2 text-xs text-amber-50">
+            <span className="font-bold">⚠️ Simulation mode.</span> There's no live Instagram/Drive integration yet — connections and "Run Automation" update your own data only (queue statuses, DM categories). Going live is on the roadmap below.
+          </div>
+          <div className="mt-4 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 font-semibold">Setup checklist {saving && <span className="text-cyan-100 font-normal">· Saving...</span>}</div>
+            <div className="mt-2 grid gap-1 sm:grid-cols-2">
+              {checklist.map(c => (
+                <div key={c.label} className="flex items-center gap-1.5 text-xs">
+                  <span>{c.done ? '✅' : '⬜'}</span>
+                  <span className={c.done ? 'text-white' : 'text-cyan-100/70'}>{c.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
           <button
             onClick={handleRunAutomation}
@@ -274,8 +283,8 @@ export default function WorkflowManagerPage() {
 
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-1">
-            <h2 className="text-sm font-bold text-gray-800">1) App Connections</h2>
-            <p className="mt-1 text-xs text-gray-500">Connect through official APIs only.</p>
+            <h2 className="text-sm font-bold text-gray-800">1) App Connections <span className="text-[10px] font-semibold text-amber-600">· simulated</span></h2>
+            <p className="mt-1 text-xs text-gray-500">Toggles are placeholders — no OAuth yet. They only record your intent until a real integration ships.</p>
             <div className="mt-4 space-y-3">
               {(
                 [
@@ -550,7 +559,8 @@ export default function WorkflowManagerPage() {
         </div>
 
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-bold text-gray-800">Success Blueprint (Execution Plan)</h2>
+          <h2 className="text-sm font-bold text-gray-800">🛣️ Roadmap to go live</h2>
+          <p className="mt-1 text-xs text-gray-500">What real integration will require (not yet built):</p>
           <ol className="mt-4 space-y-2 text-sm text-gray-700">
             {planItems.map((item, idx) => (
               <li key={item} className="flex gap-2">

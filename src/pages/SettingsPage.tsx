@@ -63,6 +63,22 @@ export default function SettingsPage() {
     const [showKey, setShowKey] = useState(false);
     const [showChatKey, setShowChatKey] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [backendUp, setBackendUp] = useState<boolean | null>(null);
+
+    // Live backend reachability — poll GET /api/health (green/red for real).
+    useEffect(() => {
+        const base = import.meta.env.VITE_API_BASE_URL || '/api';
+        let active = true;
+        const check = async () => {
+            try {
+                const r = await fetch(`${base}/health`, { cache: 'no-store' });
+                if (active) setBackendUp(r.ok);
+            } catch { if (active) setBackendUp(false); }
+        };
+        check();
+        const t = setInterval(check, 15000);
+        return () => { active = false; clearInterval(t); };
+    }, []);
 
     // ── Load from MongoDB on mount ──────────────────────────────────────────
     useEffect(() => {
@@ -398,12 +414,16 @@ export default function SettingsPage() {
                             {exporting ? 'Exporting…' : '⬇ Export JSON'}
                         </button>
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
+                    <div className={`flex items-center justify-between p-4 rounded-xl ${backendUp === false ? 'bg-red-50' : 'bg-emerald-50'}`}>
                         <div>
-                            <p className="text-sm font-semibold text-gray-800">MongoDB Atlas</p>
-                            <p className="text-xs text-gray-400">harsh_personal · cluster0.bacgamo.mongodb.net</p>
+                            <p className="text-sm font-semibold text-gray-800">Backend API</p>
+                            <p className="text-xs text-gray-400">
+                                {backendUp === null ? 'Checking connection…' : backendUp ? 'Reachable — data is syncing' : 'Unreachable — changes won\'t save'}
+                            </p>
                         </div>
-                        <span className="text-xs font-bold bg-emerald-600 text-white px-3 py-1.5 rounded-full">🟢 Atlas</span>
+                        <span className={`text-xs font-bold text-white px-3 py-1.5 rounded-full ${backendUp === false ? 'bg-red-500' : backendUp ? 'bg-emerald-600' : 'bg-gray-400'}`}>
+                            {backendUp === null ? '… Checking' : backendUp ? '🟢 Online' : '🔴 Offline'}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -423,7 +443,7 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            <p className="text-center text-xs text-gray-300 pb-4">Personal Space v3.0 — Phase 3 ✅ · Atlas Connected 🍃</p>
+            <p className="text-center text-xs text-gray-300 pb-4">Personal Portal · your private command center</p>
         </div>
     );
 }

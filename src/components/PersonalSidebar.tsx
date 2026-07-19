@@ -136,8 +136,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: "social", icon: <SocialIcon />, name: "Social Life", path: "/social", accent: "bg-fuchsia-500", emoji: "📱" },
   { id: "blogs", icon: <BlogsIcon />, name: "Blogs", path: "/blogs", accent: "bg-cyan-500", emoji: "🌍" },
   { id: "workflow", icon: <WorkflowIcon />, name: "Workflow Manager", path: "/workflow-manager", accent: "bg-emerald-500", emoji: "⚙️" },
-  { id: "ai", icon: <AiIcon />, name: "AI Assistant", path: "/ai-chat", accent: "bg-cyan-500", emoji: "🤖" },
-  { id: "agent", icon: <AiIcon />, name: "Personal Agent", path: "/agent", accent: "bg-indigo-500", emoji: "🧩" },
+  { id: "ai", icon: <AiIcon />, name: "AI Chat", path: "/ai-chat", accent: "bg-cyan-500", emoji: "💬" },
+  { id: "agent", icon: <AiIcon />, name: "Agent (takes action)", path: "/agent", accent: "bg-indigo-500", emoji: "🧩" },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [

@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PageMeta from '../shared/PageMeta';
 import { chatApiService } from '../services/chat.api';
@@ -180,9 +181,9 @@ export default function AiChatPage() {
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 text-xl">🤖</div>
             <div>
-              <h1 className="text-sm font-bold text-gray-900">AI Personal Assistant</h1>
+              <h1 className="text-sm font-bold text-gray-900">AI Chat — ask &amp; talk</h1>
               <p className="text-xs text-gray-400">
-                {hasApiKey ? 'AI key detected in Settings' : 'Preview mode active (add key in Settings)'}
+                {hasApiKey ? 'Using your Gemini/ChatGPT key' : 'Using local AI (Ollama) — add a cloud key in Settings for cloud models'}
               </p>
             </div>
           </div>
@@ -193,6 +194,11 @@ export default function AiChatPage() {
             Clear chat
           </button>
         </div>
+
+        <Link to="/agent" className="mb-3 flex items-center justify-between rounded-xl bg-violet-50 border border-violet-100 px-3 py-2 text-xs text-violet-700 hover:bg-violet-100 transition-colors">
+          <span>💬 This is plain chat — it answers questions. Need it to <b>do</b> things (create tasks, log expenses)?</span>
+          <span className="font-semibold whitespace-nowrap">Open Agent →</span>
+        </Link>
 
         <div className="flex-1 space-y-4 overflow-y-auto pr-1">
           {isLoading && <p className="text-center text-sm text-gray-400">Loading messages...</p>}

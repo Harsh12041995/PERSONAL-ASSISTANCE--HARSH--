@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Send,
   Square,
@@ -209,7 +210,7 @@ export default function AgentPage() {
               <Bot size={20} />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-gray-900 dark:text-white">Personal Agent</h1>
+              <h1 className="text-sm font-bold text-gray-900 dark:text-white">Agent — acts on your data</h1>
               <p className="flex items-center gap-1.5 text-xs text-gray-400">
                 <span
                   className={`inline-block h-2 w-2 rounded-full ${
@@ -224,6 +225,9 @@ export default function AgentPage() {
               </p>
             </div>
           </div>
+          <Link to="/ai-chat" className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors whitespace-nowrap">
+            💬 Just chat →
+          </Link>
         </div>
 
         {/* Messages */}
