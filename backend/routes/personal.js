@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const p = require('../controllers/personal');
 const pushCtrl = require('../controllers/push');
+const focusCtrl = require('../controllers/focus');
+
+// ── Focus sessions + gamification ──────────────────────────────────────────────
+router.get('/focus', focusCtrl.getFocusSessions);
+router.post('/focus', focusCtrl.createFocusSession);
+router.delete('/focus/:id', focusCtrl.deleteFocusSession);
+router.get('/gamification', focusCtrl.getGamification);
 
 // ── Web Push (notifications) ───────────────────────────────────────────────────
 router.get('/push/vapid', pushCtrl.getVapid);

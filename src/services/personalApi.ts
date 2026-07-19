@@ -45,6 +45,26 @@ export const captureApi = {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PUSH NOTIFICATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FOCUS + GAMIFICATION
+// ═══════════════════════════════════════════════════════════════════════════════
+export interface IFocusSession { _id: string; label: string; taskId?: string | null; minutes: number; date: string; completedAt: string; }
+export interface IAchievement { id: string; emoji: string; name: string; desc: string; unlocked: boolean; }
+export interface IGamification {
+    xp: number; level: number; levelProgress: number; xpIntoLevel: number; xpForNext: number;
+    habitStreak: number; focusStreak: number;
+    stats: { tasksCompleted: number; goalsCompleted: number; transactions: number; captures: number; habitChecks: number; habitStreak: number; focusMinutes: number; focusSessions: number; focusStreak: number };
+    achievements: IAchievement[];
+}
+export const focusApi = {
+    getAll: (): Promise<{ sessions: IFocusSession[]; todayMinutes: number; totalMinutes: number }> => api.get('/focus').then(data),
+    create: (d: { label: string; minutes: number; taskId?: string | null }) => api.post('/focus', d).then(data),
+    remove: (id: string) => api.delete(`/focus/${id}`).then(data),
+};
+export const gamificationApi = {
+    get: (): Promise<IGamification> => api.get('/gamification').then(data),
+};
+
 export interface IPushSub { endpoint: string; keys: { p256dh: string; auth: string }; }
 export const pushApi = {
     vapid: (): Promise<{ enabled: boolean; publicKey: string }> => api.get('/push/vapid').then(data),

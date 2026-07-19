@@ -6,6 +6,21 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 5.3: Focus & Streaks (Pomodoro + gamification) ([task.md](../task.md) Phase 5)
+
+The retention engine. Branch `feat/phase-5-product`.
+
+### Added
+- **Focus sessions**: `FocusSession` model + `/personal/focus` (create/list/delete). List returns `todayMinutes` + lifetime `totalMinutes`.
+- **Gamification** (`GET /personal/gamification`, all derived from real data): XP = tasks·10 + habit-checks·5 + goals·50 + focus-minutes·1 + captures·2 + transactions·3; level curve `100·(n-1)²`; habit streak + focus streak (consecutive active days, holds if today not yet logged); 10 rule-based achievements (First Focus, Deep Diver, Marathoner, Centurion, Week Warrior, Unstoppable, Goal Getter, Money Minder, Scribe, …).
+- **`FocusPage`** (`/focus` route + sidebar entry 🍅): SVG-ring Pomodoro timer (15/25/50 presets + auto 5-min break, auto-logs a completed focus block), "what are you focusing on" + optional task link, manual-log button, recent-session list; a stats panel with today's minutes, focus streak, an XP/level progress bar, and an achievements grid.
+
+### Verification
+- Backend harness (supertest, scratch DB `ceostest`, **14/14 PASS**): create/validate(400)/list(todayMinutes=25)/delete; gamification XP=60 for seeded 2 tasks+3 habit-checks+25 focus-min, habit streak=2 (today+yesterday), focus streak=1, `first_focus` unlocked & `focus_5h` locked.
+- `corepack yarn build` green; eslint clean on `FocusPage.tsx` + `PersonalSidebar.tsx`.
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 5.2: Smart Capture (chrono-node NLP) ([task.md](../task.md) Phase 5)
 
 Makes the capture box understand natural language. Branch `feat/phase-5-product`.

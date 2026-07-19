@@ -110,6 +110,12 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const FocusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v.756a9 9 0 11-1.5 0V3a.75.75 0 01.75-.75zm0 6a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 0112 8.25z" clipRule="evenodd" />
+  </svg>
+);
+
 // ─── Navigation Configuration ─────────────────────────────────────────────────
 
 interface NavItem {
@@ -132,6 +138,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "knowledge", icon: <KnowledgeIcon />, name: "Knowledge", path: "/knowledge", accent: "bg-indigo-500", emoji: "🧠" },
   { id: "goals", icon: <GoalsIcon />, name: "Goals", path: "/goals", accent: "bg-pink-500", emoji: "🎯" },
   { id: "health", icon: <HealthIcon />, name: "Health", path: "/health", accent: "bg-rose-500", emoji: "💪" },
+  { id: "focus", icon: <FocusIcon />, name: "Focus", path: "/focus", accent: "bg-red-500", emoji: "🍅" },
   { id: "career", icon: <CareerIcon />, name: "Career", path: "/career", accent: "bg-orange-500", emoji: "💼" },
   { id: "social", icon: <SocialIcon />, name: "Social Life", path: "/social", accent: "bg-fuchsia-500", emoji: "📱" },
   { id: "blogs", icon: <BlogsIcon />, name: "Blogs", path: "/blogs", accent: "bg-cyan-500", emoji: "🌍" },
