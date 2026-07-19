@@ -1,5 +1,4 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Send,
   Square,
@@ -8,13 +7,27 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  History,
+  X,
 } from "lucide-react";
 import PageMeta from "../shared/PageMeta";
 import {
   streamAgentChat,
   getAgentHealth,
+  getAgentRuns,
+  getAgentTools,
   type AgentStreamEvent,
+  type AgentRunSummary,
+  type AgentTool,
 } from "../services/agent.api";
+
+// One persistent conversation thread per browser, so history survives refresh.
+const CONVO_KEY = "agent_conversation_id";
+const getConversationId = () => {
+  let id = localStorage.getItem(CONVO_KEY);
+  if (!id) { id = `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; localStorage.setItem(CONVO_KEY, id); }
+  return id;
+};
 
 type Role = "user" | "assistant";
 
@@ -46,8 +59,15 @@ const SUGGESTIONS = [
 
 const TOOL_META: Record<string, { icon: string; label: string }> = {
   create_task: { icon: "✅", label: "Create task" },
+  complete_task: { icon: "✔️", label: "Complete task" },
   log_expense: { icon: "💰", label: "Log transaction" },
   add_capture: { icon: "📝", label: "Add capture" },
+  create_goal: { icon: "🎯", label: "Create goal" },
+  update_goal_progress: { icon: "📈", label: "Update goal" },
+  log_health: { icon: "💪", label: "Log health" },
+  add_calendar_event: { icon: "📅", label: "Add event" },
+  add_contact: { icon: "🤝", label: "Add contact" },
+  search_personal_context: { icon: "🔍", label: "Search your data" },
 };
 
 const toolMeta = (name: string) =>
@@ -60,6 +80,10 @@ export default function AgentPage() {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [engine, setEngine] = useState<{ reachable: boolean; model: string } | null>(null);
+  const [panel, setPanel] = useState<null | "runs" | "tools">(null);
+  const [runs, setRuns] = useState<AgentRunSummary[]>([]);
+  const [tools, setTools] = useState<AgentTool[]>([]);
+  const conversationId = useMemo(() => getConversationId(), []);
 
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -160,6 +184,7 @@ export default function AgentPage() {
       await streamAgentChat({
         message: clean,
         history: priorHistory,
+        conversationId,
         onEvent: handleEvent,
         signal: ac.signal,
       });
@@ -225,10 +250,58 @@ export default function AgentPage() {
               </p>
             </div>
           </div>
-          <Link to="/ai-chat" className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors whitespace-nowrap">
-            💬 Just chat →
-          </Link>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setPanel("tools"); getAgentTools().then(setTools).catch(() => setTools([])); }}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <Wrench size={13} /> Tools
+            </button>
+            <button onClick={() => { setPanel("runs"); getAgentRuns().then(setRuns).catch(() => setRuns([])); }}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <History size={13} /> History
+            </button>
+          </div>
         </div>
+
+        {/* Runs / Tools drawer */}
+        {panel && (
+          <div className="fixed inset-0 z-[80] flex justify-end" onClick={() => setPanel(null)}>
+            <div className="absolute inset-0 bg-black/25" />
+            <div className="relative h-full w-full max-w-sm overflow-y-auto bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800 shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">{panel === "runs" ? "Recent runs" : "Available tools"}</h2>
+                <button onClick={() => setPanel(null)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"><X size={16} /></button>
+              </div>
+              {panel === "tools" ? (
+                tools.length === 0 ? <p className="text-xs text-gray-400">No tools loaded.</p> : (
+                  <div className="space-y-2">
+                    {tools.map((t) => (
+                      <div key={t.name} className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">{toolMeta(t.name).icon} {toolMeta(t.name).label}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{t.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                runs.length === 0 ? <p className="text-xs text-gray-400">No runs yet — ask the agent to do something.</p> : (
+                  <div className="space-y-2">
+                    {runs.map((r) => (
+                      <div key={r._id} className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${r.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : r.status === "error" ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300" : "bg-gray-100 text-gray-600"}`}>{r.status}</span>
+                          <span className="text-[10px] text-gray-400">{new Date(r.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                        </div>
+                        <p className="text-sm text-gray-800 dark:text-gray-200 mt-1.5 line-clamp-2">{r.input}</p>
+                        {r.output && <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-3">{r.output}</p>}
+                        <p className="text-[10px] text-gray-400 mt-1">{r.steps} step{r.steps === 1 ? "" : "s"}{r.latencyMs ? ` · ${(r.latencyMs / 1000).toFixed(1)}s` : ""}</p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 space-y-4 overflow-y-auto pr-1">
@@ -238,8 +311,8 @@ export default function AgentPage() {
                 <Bot size={26} />
               </div>
               <p className="max-w-md text-sm text-gray-500 dark:text-gray-400">
-                I can act on your data — create tasks, log expenses, and capture ideas.
-                Try one of the prompts below, or just tell me what you need.
+                I can act on your data — tasks, goals, finances, health, calendar, contacts, and captures —
+                or just chat. Try a prompt below, or tell me what you need. See <b>Tools</b> for everything I can do.
               </p>
             </div>
           )}

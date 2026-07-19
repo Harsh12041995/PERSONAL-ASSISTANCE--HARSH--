@@ -3,8 +3,10 @@
 // Attention is allocated like capital — the Friday question is always visible.
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { portfolioApi, staffApi, IProject, IDecision, IActivityEvent } from '../services/staff.api';
+import { localToday } from '../utils/date';
 
 const STATUS_META: Record<IProject['status'], { label: string; chip: string; dot: string }> = {
     active: { label: 'Active', chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300', dot: 'bg-emerald-500' },
@@ -62,6 +64,17 @@ function ProjectCard({ project, onChanged }: { project: IProject; onChanged: () 
         }
     };
 
+    const deleteProject = async () => {
+        if (!window.confirm(`Permanently delete "${project.name}"? This can't be undone.`)) return;
+        try {
+            await portfolioApi.deleteProject(project._id);
+            toast.success(`${project.name} deleted`);
+            onChanged();
+        } catch {
+            toast.error("Couldn't delete the project.");
+        }
+    };
+
     return (
         <div className={`bg-white rounded-2xl border shadow-sm dark:bg-gray-900 p-5 transition-all ${isStale
             ? 'border-amber-300 dark:border-amber-500/40'
@@ -81,6 +94,15 @@ function ProjectCard({ project, onChanged }: { project: IProject; onChanged: () 
                         )}
                     </div>
                     {project.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{project.description}</p>}
+                    {(project.tags?.length > 0 || project.links?.deploy || project.links?.docs) && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            {project.tags?.map(t => (
+                                <span key={t} className="text-[10px] bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 px-2 py-0.5 rounded-full">#{t}</span>
+                            ))}
+                            {project.links?.deploy && <a href={project.links.deploy} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] font-semibold text-violet-600 dark:text-violet-300 hover:underline">🌐 deploy</a>}
+                            {project.links?.docs && <a href={project.links.docs} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] font-semibold text-violet-600 dark:text-violet-300 hover:underline">📄 docs</a>}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -103,6 +125,9 @@ function ProjectCard({ project, onChanged }: { project: IProject; onChanged: () 
                 {project.status !== 'done' && project.status !== 'killed' && <button onClick={() => setStatus('killed')} className="px-3 py-1.5 rounded-lg font-semibold bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 transition-colors">🔪 Kill</button>}
                 {project.status === 'active' && <button onClick={() => setStatus('done')} className="px-3 py-1.5 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300 transition-colors">✓ Done</button>}
                 <button onClick={() => setShowLog(!showLog)} className="px-3 py-1.5 rounded-lg font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 transition-colors">+ Log work</button>
+                {(project.status === 'killed' || project.status === 'done') && (
+                    <button onClick={deleteProject} title="Delete project" className="px-3 py-1.5 rounded-lg font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">🗑 Delete</button>
+                )}
                 {project.githubRepo && <span className="ml-auto text-[10px] text-gray-400 font-mono truncate">⎇ {project.githubRepo}</span>}
             </div>
 
@@ -169,6 +194,18 @@ export default function PortfolioPage() {
             load();
         } catch {
             toast.error("Couldn't record the decision.");
+        }
+    };
+
+    const reviewDecision = async (d: IDecision) => {
+        const outcome = window.prompt(`How did "${d.title}" turn out? (records the outcome and marks it reviewed)`, d.outcome || '');
+        if (outcome === null) return;
+        try {
+            await portfolioApi.updateDecision(d._id, { status: 'reviewed', outcome, reviewAt: localToday() });
+            toast.success('Decision marked reviewed');
+            load();
+        } catch {
+            toast.error("Couldn't update the decision.");
         }
     };
 
@@ -239,6 +276,7 @@ export default function PortfolioPage() {
                     <p className="text-3xl mb-2">🗂️</p>
                     <p className="text-sm font-medium">No projects yet.</p>
                     <p className="text-xs mt-1">Add each thing you're building — agentic AI, legal assistant, marriage app, reels vault — then let the Friday review keep you honest.</p>
+                    <p className="text-xs mt-3">Have GitHub repos? <Link to="/hq" className="text-violet-600 dark:text-violet-300 font-semibold hover:underline">Import them from Command Center →</Link></p>
                 </div>
             ) : (
                 <>
@@ -292,9 +330,18 @@ export default function PortfolioPage() {
                         <div className="space-y-2 max-h-72 overflow-y-auto">
                             {decisions.slice(0, 20).map(d => (
                                 <div key={d._id} className="text-xs bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5">
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{d.title}</p>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="font-semibold text-gray-800 dark:text-gray-200">{d.title}</p>
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${d.status === 'reviewed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{d.status === 'reviewed' ? 'reviewed' : 'open'}</span>
+                                    </div>
                                     {d.rationale && <p className="text-gray-500 dark:text-gray-400 mt-0.5">{d.rationale}</p>}
-                                    <p className="text-[10px] text-gray-400 mt-1">{new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                    {d.outcome && <p className="text-emerald-700 dark:text-emerald-300 mt-1">Outcome: {d.outcome}</p>}
+                                    <div className="flex items-center justify-between mt-1">
+                                        <p className="text-[10px] text-gray-400">{new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                        {d.status !== 'reviewed' && (
+                                            <button onClick={() => reviewDecision(d)} className="text-[10px] font-semibold text-violet-600 dark:text-violet-300 hover:underline">Mark reviewed →</button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

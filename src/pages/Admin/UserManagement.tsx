@@ -242,7 +242,7 @@ const UserManagement: React.FC = () => {
                     <div className="space-y-1 text-xs">
                       <label className="flex items-center gap-2"><input type="checkbox" checked={user.accountConfig?.loginAccess ?? true} onChange={(e) => handleAccountConfigUpdate(user, { loginAccess: e.target.checked })} />Login Access</label>
                       <label className="flex items-center gap-2"><input type="checkbox" checked={user.accountConfig?.mustChangePassword ?? false} onChange={(e) => handleAccountConfigUpdate(user, { mustChangePassword: e.target.checked })} />Force Password Reset</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={user.accountConfig?.twoFactorRequired ?? false} onChange={(e) => handleAccountConfigUpdate(user, { twoFactorRequired: e.target.checked })} />Require 2FA</label>
+                      <label className="flex items-center gap-2 opacity-40 cursor-not-allowed" title="2FA isn't implemented yet"><input type="checkbox" disabled checked={false} />Require 2FA <span className="text-[10px] italic">(coming soon)</span></label>
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 text-right">

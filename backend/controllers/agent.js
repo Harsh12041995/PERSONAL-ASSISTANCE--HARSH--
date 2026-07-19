@@ -4,6 +4,8 @@ const { runAgent, provider } = require('../services/agent');
 const { defaultRegistry } = require('../services/agent/tools');
 const { backfillUser } = require('../services/agent/rag/ingest');
 const AgentRun = require('../models/AgentRun');
+const UserSettings = require('../models/UserSettings');
+const aiService = require('../utils/aiService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { AppError } = require('../utils/AppError');
 
@@ -36,6 +38,31 @@ exports.chat = asyncHandler(async (req, res) => {
     req.on('close', () => ac.abort());
 
     try {
+        // The tool-calling loop needs the local engine (Ollama). If it's down
+        // but the user has a cloud key, fall back to plain chat via the
+        // Gemini→ChatGPT→Ollama cascade so the Assistant always answers
+        // (it just can't take actions in that mode).
+        const engineUp = await provider.ping().catch(() => false);
+        if (!engineUp) {
+            const settings = await UserSettings.findOne({ userId: req.user._id });
+            const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+            if (!config.geminiKey && !config.chatgptKey) {
+                send({ type: 'error', error: 'Local engine (Ollama) is offline and no cloud AI key is set in Settings. Start Ollama or add a Gemini/ChatGPT key to chat.' });
+                return;
+            }
+            const t0 = Date.now();
+            const convo = (history || []).map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
+            const prompt = `${convo ? convo + '\n' : ''}User: ${message}\nAssistant:`;
+            const answer = await aiService.generateText(
+                prompt,
+                'You are a helpful personal assistant. The action-taking tools are offline right now, so answer conversationally and, if the user asks you to DO something, tell them to retry once the local engine is running.',
+                config,
+            );
+            send({ type: 'text', delta: answer });
+            send({ type: 'final', runId: `chat_${Date.now()}`, text: answer, latencyMs: Date.now() - t0 });
+            return;
+        }
+
         const result = await runAgent({
             userId, message, history, conversationId,
             onEvent: send, signal: ac.signal,

@@ -149,37 +149,37 @@ Everything here is "the code doesn't do what it plainly intended." Fix as one ba
 
 ## Phase 3 — Power features on existing rails
 
-- [ ] **3.1 Merge assistants into one.**
+- [x] **3.1 Merge assistants into one.**
   **Files:** `src/App.tsx` (route `/ai-chat` → redirect `/agent`), `src/pages/AgentPage.tsx`, `backend/services/agent/` (provider), `src/services/agent.api.ts`
   **Do:** Agent page becomes "Assistant": if the tool loop's provider (Ollama) is offline, fall back to plain chat via the existing Gemini/ChatGPT/Ollama cascade (`aiService.generateText`) so the page always answers; add a run-history drawer (`getAgentRuns` — built, never called: `agent.api.ts:113-123`) and a tools list (`getAgentTools`); pass a persistent `conversationId` (currently always `undefined` — `AgentPage.tsx:159-164`) so threads survive refresh; retire `AiChatPage` after parity.
   **Accept:** with Ollama stopped but a Gemini key set, the Assistant still answers; refresh preserves the conversation; a past run's tool trace is viewable in-app.
 
-- [ ] **3.2 Agent write-tools for the rest of the portal.**
+- [x] **3.2 Agent write-tools for the rest of the portal.**
   **Files:** `backend/services/agent/tools/` (new: `completeTask`, `createGoal`, `updateGoalProgress`, `logHealth`, `addCalendarEvent`, `addContact`) + register in `tools/index.js`; sync `TOOL_META` in `AgentPage.tsx:46-50` (already stale — missing `search_personal_context`)
   **Do:** follow the existing `defineTool` pattern (JSON Schema + Zod + ctx.userId scoping). Agent gains modify powers, not just create (today: create-only, 3 modules of 10).
   **Accept:** "mark my milk task done and log that I slept 8 hours" executes two tool calls visible in the timeline, and the records change.
 
-- [ ] **3.3 Calendar: timed events + drag-reschedule + overlays.**
+- [x] **3.3 Calendar: timed events + drag-reschedule + overlays.**
   **Files:** `src/pages/Calendar.tsx` (allDay hardcoded `true` at 83; `interactionPlugin` loaded at 5,153 but `editable`/`eventDrop`/`eventResize` never wired; modal has date-only inputs 234-252), `backend/models/CalendarEvent.js` (start/end already strings — accept ISO datetimes)
   **Do:** allDay toggle + datetime-local inputs; wire `editable`, `eventDrop`, `eventResize` → `calendarApi.update`; overlay task `dueDate`s and goal `deadline`s as read-only background events linking to their pages.
   **Accept:** drag an event to another day → persists; a timed event renders correctly in week view; tasks with due dates appear on the calendar.
 
-- [ ] **3.4 Scheduler that actually fires on the deployed stack.**
+- [x] **3.4 Scheduler that actually fires on the deployed stack.**
   **Files:** new `netlify/functions/cron-brief.js` (Netlify Scheduled Function) **or** `.github/workflows/cron.yml` hitting `POST {PUBLIC_BASE_URL}/api/v1/staff/brief/run`, `/staff/review/run`, ghostwriter run — with a service token; update `docs/DEPLOYMENT.md` + the misleading "generates automatically at 7:00" copy in `CommandCenterPage.tsx:304` to state the real trigger
   **Do:** pick per deployment target: Docker tier keeps `ENABLE_SCHEDULER=true`; Netlify-only deploys get the scheduled function/GH-cron. Needs a simple auth mechanism for machine calls (e.g. `X-Service-Token` checked against env) since these routes currently require a user JWT.
   **Accept:** on the deployed environment, the morning brief exists by 07:05 IST without anyone clicking "Generate now".
 
-- [ ] **3.5 Portfolio completeness.**
+- [x] **3.5 Portfolio completeness.**
   **Files:** `src/pages/PortfolioPage.tsx`, `src/pages/CommandCenterPage.tsx:412-416`
   **Do:** (a) delete-project button (API exists: `staff.api.ts:132`, `portfolio.js:61-66`); (b) decision-review workflow UI — set `reviewAt`, mark reviewed, record `outcome` (API exists: `portfolio.js:112-123`); (c) surface `tags` + `links.deploy/docs` on cards (schema fields exist, never rendered); (d) empty-state CTA linking to the GitHub importer; (e) an explicit "Register webhooks" button in Command Center calling `ingestApi.registerGithubWebhooks` (built, no UI trigger; current copy claims it's automatic — it isn't).
   **Accept:** a killed project can be deleted; a decision can be marked reviewed with an outcome; webhook registration returns per-repo results in a toast/panel.
 
-- [ ] **3.6 Permission catalog covers HQ + Portfolio.**
+- [x] **3.6 Permission catalog covers HQ + Portfolio.**
   **Files:** `backend/config.permissions.js`, `src/App.tsx:88-89` (currently gates `/hq` on `ai_chat` and `/portfolio` on `tasks`), `src/utils/featurePermissions.ts`
   **Do:** add `command_center` and `portfolio` permission ids; gate routes/sidebar with them; Permission Matrix picks them up automatically (renders from catalog).
   **Accept:** an admin can revoke Portfolio access for a role without touching Tasks access.
 
-- [ ] **3.7 Enforce `mustChangePassword`; hide 2FA until real.**
+- [x] **3.7 Enforce `mustChangePassword`; hide 2FA until real.**
   **Files:** `backend/controllers/auth.js` (login flow), `backend/middleware/auth.js`, `src/pages/Admin/UserManagement.tsx:132-144`, existing `src/components/auth/SetPasswordPage.tsx`
   **Do:** on login (or via `protect`), if `accountConfig.mustChangePassword` → respond with a flag; frontend routes to SetPasswordPage and clears the flag on success. Remove/disable the 2FA checkbox with a "coming soon" note (currently stores a flag nothing reads).
   **Accept:** flagging a user forces the password screen on their next login; no inert security checkboxes remain.

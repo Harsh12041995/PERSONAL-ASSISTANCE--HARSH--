@@ -140,6 +140,7 @@ export default function CommandCenterPage() {
     const [reviewRunning, setReviewRunning] = useState(false);
     const [ghUser, setGhUser] = useState('');
     const [importing, setImporting] = useState(false);
+    const [registering, setRegistering] = useState(false);
 
     const loadQueue = useCallback(async (tab = queueTab) => {
         try {
@@ -255,6 +256,20 @@ export default function CommandCenterPage() {
         }
     };
 
+    const registerWebhooks = async () => {
+        setRegistering(true);
+        try {
+            const r = await ingestApi.registerGithubWebhooks();
+            const ok = r.results.filter(x => x.status === 'registered' || x.status === 'already-exists').length;
+            toast.success(`Webhooks: ${ok}/${r.results.length} repos ready at ${r.callbackUrl}`);
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { error?: { message?: string } } } };
+            toast.error(e.response?.data?.error?.message || "Needs PUBLIC_BASE_URL + GITHUB_TOKEN (admin:repo_hook) in the backend .env.");
+        } finally {
+            setRegistering(false);
+        }
+    };
+
     return (
         <div className="space-y-6 pb-8">
             {/* Header */}
@@ -301,7 +316,7 @@ export default function CommandCenterPage() {
                         <div className="text-center py-10 text-gray-400">
                             <p className="text-3xl mb-2">🌅</p>
                             <p className="text-sm">No brief for today yet.</p>
-                            <p className="text-xs mt-1">It generates automatically at 7:00 — or hit "Generate brief now".</p>
+                            <p className="text-xs mt-1">Generate it now, or automate it: enable the scheduler on the Docker tier, or the GitHub-Actions cron on serverless (see DEPLOYMENT.md).</p>
                         </div>
                     )}
                 </div>
@@ -412,8 +427,16 @@ export default function CommandCenterPage() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-2">
                             Creates a Project card per repo (imported <span className="font-semibold">parked</span>) and backfills recent commits.
                             Public repos work with just a username; add <code className="font-mono text-[11px]">GITHUB_TOKEN</code> to the backend <code className="font-mono text-[11px]">.env</code> for private repos.
-                            For live activity after deploy, set <code className="font-mono text-[11px]">PUBLIC_BASE_URL</code> + <code className="font-mono text-[11px]">GITHUB_TOKEN</code> and the backend can register webhooks automatically.
                         </p>
+                        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                            <button onClick={registerWebhooks} disabled={registering}
+                                className="px-4 py-2 rounded-xl text-xs font-semibold border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors disabled:opacity-50">
+                                {registering ? 'Registering…' : '🔗 Register GitHub webhooks'}
+                            </button>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-2">
+                                For live push/PR/issue activity: set <code className="font-mono text-[11px]">PUBLIC_BASE_URL</code> + <code className="font-mono text-[11px]">GITHUB_TOKEN</code> (with <code className="font-mono text-[11px]">admin:repo_hook</code>) in the backend <code className="font-mono text-[11px]">.env</code>, then click this once to register webhooks on all imported repos.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -6,6 +6,31 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 3: power features on existing rails ([task.md](../task.md) Phase 3)
+
+All 7 Phase 3 tasks on branch `fix/phase-3-power-features` (off Phase 2).
+
+### Added
+- **6 new agent write-tools** (`backend/services/agent/tools/`): `complete_task`, `create_goal`, `update_goal_progress`, `log_health`, `add_calendar_event`, `add_contact` — following the `defineTool` (JSON-Schema + Zod + `ctx.userId`) pattern; registered in `tools/index.js` (now 10 tools). The agent can modify records across Tasks/Goals/Health/Calendar/Contacts, not just create. `TOOL_META` in AgentPage synced.
+- **Assistant merge** (3.1): `/ai-chat` now redirects to `/agent`; `AiChatPage` retired from routing/sidebar. The agent `chat` controller falls back to plain chat via the Gemini→ChatGPT→Ollama cascade (`aiService.generateText`) when Ollama is offline (so it always answers, just without tools). Agent page gained a **run-history + tools drawer** (`getAgentRuns`/`getAgentTools` — previously built, never called) and a **persistent `conversationId`** (localStorage) passed to the stream so threads survive refresh.
+- **Calendar timed events + drag** (3.3): all-day toggle + `datetime-local` inputs; `editable`/`eventDrop`/`eventResize` wired to `calendarApi.update`; task `dueDate`s and goal `deadline`s overlaid as read-only background events that link to their pages on click.
+- **External scheduler** (3.4): `POST /api/cron/run` authed by `X-Service-Token` (env `SERVICE_TOKEN`) runs the scheduler's per-user JOBS; `.github/workflows/cron.yml` fires them on a UTC schedule for serverless deploys; DEPLOYMENT.md documents both tiers.
+- **Forced password change** (3.7): `POST /auth/change-password` (authed) sets a new password + clears `accountConfig.mustChangePassword`; `ForcePasswordChange` screen gates the app via `ProtectedRoute` when the flag is set.
+
+### Changed
+- **Portfolio completeness** (3.5): delete-project (killed/done), decision-review workflow (mark reviewed + record outcome), `tags`/`links.deploy`/`links.docs` surfaced on cards, empty-state CTA to the GitHub importer, and a **"Register GitHub webhooks"** button in Command Center (was claimed "automatic"; now an explicit action).
+- **Permission catalog** (3.6): added `command_center` + `portfolio` permission ids; `/hq` and `/portfolio` gate on them (were `ai_chat`/`tasks`); the Permission Matrix renders them automatically.
+- Admin **2FA checkbox disabled** with a "coming soon" note (it stored an inert flag).
+
+### Security
+- **Passwords are stored/compared in plaintext** (`auth.js` login: `user.password !== password`, "local dev" comment). The new `change-password` deliberately follows the same scheme rather than diverging (bcrypt on one path would break login). **Flagged as a required security follow-up** — hash all passwords + migrate. Not done here to avoid breaking existing logins mid-phase.
+
+### Verification
+- `yarn build` green; `node --check` on all new backend files; eslint clean on new files (remaining `any` are pre-existing baseline). Browser: `/ai-chat` redirects to `/agent`; the merged page shows History + Tools.
+- Runtime (scratch DB): `complete_task` marked a task done; `log_health` set energy + a habit; registry reports 10 tools; cron endpoint = 401 without token / 200 with valid token; `change-password` updated the password and flipped `mustChangePassword` to false. All PASS.
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 2: honest modules ([task.md](../task.md) Phase 2)
 
 All 4 Phase 2 tasks on branch `fix/phase-2-honest-modules` (off Phase 1). Theme: kill the fakes; show the truth.

@@ -4,6 +4,8 @@ const PERMISSION_CATALOG = [
   { id: 'ai_chat', name: 'AI Assistant', category: 'core' },
   { id: 'calendar', name: 'Calendar', category: 'core' },
   { id: 'social', name: 'Social Manager', category: 'integration' },
+  { id: 'command_center', name: 'Command Center (HQ)', category: 'business' },
+  { id: 'portfolio', name: 'Portfolio', category: 'business' },
   { id: 'marketing', name: 'Marketing', category: 'business' },
   { id: 'blogs', name: 'Blogs', category: 'business' },
   { id: 'security', name: 'Security Center', category: 'admin' },

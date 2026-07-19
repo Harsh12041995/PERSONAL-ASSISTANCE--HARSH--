@@ -1,5 +1,5 @@
 // App.tsx — Harsh's Personal Command Center
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
 import { ToastContainer } from "react-toastify";
@@ -30,7 +30,6 @@ import GoalsPage from "./pages/GoalsPage";
 import HealthPage from "./pages/HealthPage";
 import CareerPage from "./pages/CareerPage";
 import SocialPage from "./pages/SocialPage";
-import AiChatPage from "./pages/AiChatPage";
 import AgentPage from "./pages/AgentPage";
 import CommandCenterPage from "./pages/CommandCenterPage";
 import PortfolioPage from "./pages/PortfolioPage";
@@ -83,10 +82,10 @@ export default function App() {
           <Route path="/social" element={<ProtectedRoute requiredPermission="social"><SocialPage /></ProtectedRoute>} />
           <Route path="/blogs" element={<ProtectedRoute requiredPermission="blogs"><BlogsPage /></ProtectedRoute>} />
           <Route path="/workflow-manager" element={<ProtectedRoute requiredPermission="social"><WorkflowManagerPage /></ProtectedRoute>} />
-          <Route path="/ai-chat" element={<ProtectedRoute requiredPermission="ai_chat"><AiChatPage /></ProtectedRoute>} />
+          <Route path="/ai-chat" element={<Navigate to="/agent" replace />} />
           <Route path="/agent" element={<ProtectedRoute requiredPermission="ai_chat"><AgentPage /></ProtectedRoute>} />
-          <Route path="/hq" element={<ProtectedRoute requiredPermission="ai_chat"><CommandCenterPage /></ProtectedRoute>} />
-          <Route path="/portfolio" element={<ProtectedRoute requiredPermission="tasks"><PortfolioPage /></ProtectedRoute>} />
+          <Route path="/hq" element={<ProtectedRoute requiredPermission="command_center"><CommandCenterPage /></ProtectedRoute>} />
+          <Route path="/portfolio" element={<ProtectedRoute requiredPermission="portfolio"><PortfolioPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><UserManagement /></ProtectedRoute>} />
           <Route path="/admin/permission-matrix" element={<ProtectedRoute allowedRoles={['owner', 'admin']} requiredPermission="user_management"><PermissionMatrix /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute requiredPermission="tasks"><SettingsPage /></ProtectedRoute>} />

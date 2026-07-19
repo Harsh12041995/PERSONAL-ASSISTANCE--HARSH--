@@ -54,6 +54,9 @@ const EnvSchema = z.object({
     // Public base URL of the deployed backend, used to register webhooks
     // (e.g. https://api.yourdomain.com). No trailing slash.
     PUBLIC_BASE_URL: z.string().default(''),
+    // Shared secret for machine-to-machine cron calls (X-Service-Token).
+    // Set this on serverless deploys where the in-process scheduler can't run.
+    SERVICE_TOKEN: z.string().default(''),
 });
 
 /**

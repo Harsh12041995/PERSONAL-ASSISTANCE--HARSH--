@@ -75,6 +75,11 @@ curl http://localhost:5001/health                   # should say {"status":"ok"}
 
 **Turn on the staff agents:** set `ENABLE_SCHEDULER=true` in `backend/.env` on this tier (never on serverless). That activates the 07:00 morning brief, 02:00 ghostwriter, Friday 16:00 portfolio kill review, and the hourly RSS poll.
 
+**Scheduler on Netlify / serverless (no long-running process):** the in-process scheduler can't run there. Instead drive the jobs externally:
+1. Set `SERVICE_TOKEN` to a long random string in the backend env.
+2. Add two GitHub repo secrets: `PUBLIC_BASE_URL` (your deployed backend base) and `SERVICE_TOKEN` (same value).
+3. The included `.github/workflows/cron.yml` fires on schedule (UTC) and calls `POST {PUBLIC_BASE_URL}/api/cron/run` with `X-Service-Token`, running each job for all users. Trigger manually anytime via the Actions tab ("Run workflow"). Endpoint returns 503 until `SERVICE_TOKEN` is set, 401 on a bad token.
+
 ---
 
 ## 3a. Build your real portfolio from GitHub

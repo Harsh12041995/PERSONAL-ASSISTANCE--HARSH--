@@ -96,6 +96,9 @@ app.use([`${apiPrefix}/portfolio`, '/v1/portfolio', '/api/portfolio', '/portfoli
 app.use([`${apiPrefix}/ingest`, '/v1/ingest', '/api/ingest', '/ingest'], globalRateLimiter, protect, routes.ingest);
 // GitHub webhook: no auth (GitHub can't log in) — HMAC-verified when GITHUB_WEBHOOK_SECRET is set.
 app.post([`${apiPrefix}/hooks/github`, '/api/hooks/github', '/hooks/github'], globalRateLimiter, githubWebhook);
+// Machine cron: no user JWT — verified via X-Service-Token inside the controller.
+const { runCron } = require('./controllers/cron');
+app.post([`${apiPrefix}/cron/run`, '/api/cron/run', '/cron/run'], globalRateLimiter, runCron);
 
 // ── Error handling (must be last) ────────────────────────────────────────────────
 app.use(notFound);

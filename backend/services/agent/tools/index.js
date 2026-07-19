@@ -7,8 +7,14 @@ function buildRegistry() {
     const registry = new ToolRegistry();
     registry
         .register(require('./createTask'))
+        .register(require('./completeTask'))
         .register(require('./logExpense'))
         .register(require('./addCapture'))
+        .register(require('./createGoal'))
+        .register(require('./updateGoalProgress'))
+        .register(require('./logHealth'))
+        .register(require('./addCalendarEvent'))
+        .register(require('./addContact'))
         .register(require('./searchContext'));
     return registry;
 }

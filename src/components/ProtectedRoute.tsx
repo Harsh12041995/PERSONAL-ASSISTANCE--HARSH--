@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { JSX } from "react";
 import { useAuth } from "../context/AuthContext";
+import ForcePasswordChange from "./auth/ForcePasswordChange";
 
 interface ProtectedRouteProps {
     children: JSX.Element;
@@ -9,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles, requiredPermission }: ProtectedRouteProps): JSX.Element => {
-    const { token, role, isLoading, isInitialized, hasFeatureAccess } = useAuth();
+    const { token, role, user, isLoading, isInitialized, hasFeatureAccess } = useAuth();
 
     if (isLoading || !isInitialized) {
         return (
@@ -26,6 +27,11 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermission }: Protecte
 
     if (!token) {
         return <Navigate to="/signin" replace />;
+    }
+
+    // Admin-forced password change gates the whole app until resolved.
+    if (user?.accountConfig?.mustChangePassword) {
+        return <ForcePasswordChange />;
     }
 
     if (allowedRoles && role && !allowedRoles.includes(role.toLowerCase())) {
