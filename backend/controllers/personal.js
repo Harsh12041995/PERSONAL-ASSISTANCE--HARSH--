@@ -26,6 +26,14 @@ const automationService = require('../services/automationService');
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const ok = (res, data) => res.json({ success: true, data });
 const fail = (res, err, status = 500) => res.status(status).json({ success: false, error: err.message || err });
+const notFound = (res, msg = 'Not found') => res.status(404).json({ success: false, error: msg });
+
+// Strip identity/ownership fields from a client-supplied update body so a
+// caller can never reassign ownership or overwrite timestamps via mass-assignment.
+const sanitize = (body = {}) => {
+    const { userId, _id, id, __v, createdAt, updatedAt, ...rest } = body;
+    return rest;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CAPTURES
@@ -56,10 +64,10 @@ exports.updateCapture = async (req, res) => {
     try {
         const capture = await Capture.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
-        if (!capture) return fail(res, 'Capture not found', 404);
+        if (!capture) return notFound(res, 'Capture not found');
         ok(res, capture);
     } catch (e) { fail(res, e); }
 };
@@ -93,9 +101,10 @@ exports.updateTask = async (req, res) => {
     try {
         const task = await Task.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
+        if (!task) return notFound(res, 'Task not found');
         ok(res, task);
     } catch (e) { fail(res, e); }
 };
@@ -122,8 +131,50 @@ exports.analyzeTasks = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  FINANCE
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Local-timezone date helpers (avoid the UTC off-by-one that toISOString causes).
+const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const todayStr = () => fmtDate(new Date());
+const addPeriod = (dateStr, freq) => {
+    const [y, m, dd] = dateStr.split('-').map(Number);
+    const d = new Date(y, m - 1, dd);
+    if (freq === 'weekly') d.setDate(d.getDate() + 7);
+    else d.setMonth(d.getMonth() + 1); // monthly
+    return fmtDate(d);
+};
+
+// For each recurring template, create the concrete occurrences due since the last
+// run up to today. Idempotent: templates advance their lastRun so re-reads don't
+// duplicate. Guard caps runaway generation for very old / mis-set templates.
+const materializeRecurring = async (userId) => {
+    const today = todayStr();
+    const templates = await Finance.find({ userId, recurrence: { $ne: 'none' } });
+    for (const t of templates) {
+        let next = t.lastRun ? addPeriod(t.lastRun, t.recurrence) : t.date;
+        const toCreate = [];
+        let guard = 0;
+        while (next && next <= today && guard < 500) {
+            toCreate.push({
+                userId, type: t.type, amount: t.amount, category: t.category,
+                note: t.note, date: next, emoji: t.emoji, recurrence: 'none', recurringId: t._id,
+            });
+            next = addPeriod(next, t.recurrence);
+            guard += 1;
+        }
+        if (toCreate.length) {
+            await Finance.insertMany(toCreate);
+            t.lastRun = toCreate[toCreate.length - 1].date;
+            await t.save();
+        }
+    }
+};
+
+// Exposed for tests/tooling — normally invoked on read.
+exports._materializeRecurring = materializeRecurring;
+
 exports.getTransactions = async (req, res) => {
     try {
+        await materializeRecurring(req.user._id);
         const txns = await Finance.find({ userId: req.user._id }).sort({ date: -1, createdAt: -1 });
         ok(res, txns);
     } catch (e) { fail(res, e); }
@@ -131,15 +182,36 @@ exports.getTransactions = async (req, res) => {
 
 exports.createTransaction = async (req, res) => {
     try {
-        const { type, amount, category, note, date, emoji } = req.body;
-        const txn = await Finance.create({ userId: req.user._id, type, amount, category, note, date, emoji });
+        const { type, amount, category, note, date, emoji, recurrence } = req.body;
+        const txn = await Finance.create({
+            userId: req.user._id, type, amount, category, note, date, emoji,
+            recurrence: ['weekly', 'monthly'].includes(recurrence) ? recurrence : 'none',
+        });
+        // Immediately seed occurrences so a new recurring rule isn't invisible.
+        if (txn.recurrence !== 'none') await materializeRecurring(req.user._id);
+        ok(res, txn);
+    } catch (e) { fail(res, e); }
+};
+
+exports.updateTransaction = async (req, res) => {
+    try {
+        const txn = await Finance.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user._id },
+            sanitize(req.body),
+            { new: true }
+        );
+        if (!txn) return notFound(res, 'Transaction not found');
         ok(res, txn);
     } catch (e) { fail(res, e); }
 };
 
 exports.deleteTransaction = async (req, res) => {
     try {
-        await Finance.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+        const doc = await Finance.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+        // Deleting a recurring rule removes its generated occurrences too.
+        if (doc && doc.recurrence !== 'none') {
+            await Finance.deleteMany({ userId: req.user._id, recurringId: doc._id });
+        }
         ok(res, { deleted: req.params.id });
     } catch (e) { fail(res, e); }
 };
@@ -166,9 +238,10 @@ exports.updateNote = async (req, res) => {
     try {
         const note = await Knowledge.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
+        if (!note) return notFound(res, 'Note not found');
         ok(res, note);
     } catch (e) { fail(res, e); }
 };
@@ -214,9 +287,10 @@ exports.updateGoal = async (req, res) => {
     try {
         const goal = await Goal.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
-            req.body,
+            sanitize(req.body),
             { new: true }
         );
+        if (!goal) return notFound(res, 'Goal not found');
         ok(res, goal);
     } catch (e) { fail(res, e); }
 };
@@ -239,6 +313,21 @@ exports.getHealthDay = async (req, res) => {
     } catch (e) { fail(res, e); }
 };
 
+// Range fetch for trend charts. GET /health?from=YYYY-MM-DD&to=YYYY-MM-DD
+exports.getHealthRange = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const q = { userId: req.user._id };
+        if (from || to) {
+            q.date = {};
+            if (from) q.date.$gte = String(from);
+            if (to) q.date.$lte = String(to);
+        }
+        const docs = await Health.find(q).sort({ date: 1 }).limit(400);
+        ok(res, docs);
+    } catch (e) { fail(res, e); }
+};
+
 exports.saveHealthDay = async (req, res) => {
     try {
         const { date } = req.params;
@@ -253,20 +342,49 @@ exports.saveHealthDay = async (req, res) => {
 };
 
 // ─── Dashboard stats helper ────────────────────────────────────────────────────
+
+// Any habit ticked that day counts as an "active" day for the streak.
+const hasAnyHabitDone = (habits) => {
+    if (!habits) return false;
+    const values = habits instanceof Map ? Array.from(habits.values()) : Object.values(habits);
+    return values.some(Boolean);
+};
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Count consecutive days (ending today or yesterday) that have ≥1 habit done.
+const computeHabitStreak = (activeDates) => {
+    const set = new Set(activeDates);
+    const cursor = new Date();
+    // If today isn't logged yet, don't break the streak — start counting from yesterday.
+    if (!set.has(ymd(cursor))) cursor.setDate(cursor.getDate() - 1);
+    let streak = 0;
+    while (set.has(ymd(cursor))) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+};
+
 exports.getDashboardStats = async (req, res) => {
     try {
         const uid = req.user._id;
         const today = new Date().toISOString().slice(0, 10);
 
-        const [tasksTodayTotal, tasksTodayDone, capturedToday, goalsAll, healthToday] = await Promise.all([
+        const [tasksTodayTotal, tasksTodayDone, capturedToday, goalsAll, healthToday, recentHealth] = await Promise.all([
             Task.countDocuments({ userId: uid, tab: 'today' }),
             Task.countDocuments({ userId: uid, tab: 'today', done: true }),
             Capture.countDocuments({ userId: uid, createdAt: { $gte: new Date(today) } }),
             Goal.find({ userId: uid }, 'progress'),
             Health.findOne({ userId: uid, date: today }),
+            Health.find({ userId: uid }, 'date habits').sort({ date: -1 }).limit(90),
         ]);
 
         const goalsOnTrack = goalsAll.filter(g => g.progress >= 50).length;
+        const habitsDoneToday = healthToday?.habits
+            ? (healthToday.habits instanceof Map ? Array.from(healthToday.habits.values()) : Object.values(healthToday.habits)).filter(Boolean).length
+            : 0;
+        const activeDates = recentHealth.filter(h => hasAnyHabitDone(h.habits)).map(h => h.date);
+        const habitStreak = computeHabitStreak(activeDates);
 
         ok(res, {
             tasksToday: tasksTodayTotal,
@@ -274,7 +392,8 @@ exports.getDashboardStats = async (req, res) => {
             capturedToday,
             goalsOnTrack,
             goalsTotal: goalsAll.length,
-            habitStreak: healthToday?.habits ? Object.values(healthToday.habits).filter(Boolean).length : 0,
+            habitsDoneToday,
+            habitStreak,
         });
     } catch (e) { fail(res, e); }
 };
@@ -310,6 +429,23 @@ exports.refineTranscript = async (req, res) => {
         const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
         const refined = await aiService.refineTranscript(text, config);
         ok(res, refined);
+    } catch (e) { fail(res, e); }
+};
+
+// Vision: analyze a camera/screen frame captured by the Sage studio.
+exports.analyzeImage = async (req, res) => {
+    try {
+        const { image, mimeType, prompt } = req.body;
+        if (!image) return fail(res, 'No image provided', 400);
+
+        // Accept both raw base64 and data-URL form; keep payloads sane.
+        const base64 = String(image).replace(/^data:[^;]+;base64,/, '');
+        if (base64.length > 8_000_000) return fail(res, 'Image too large — use a smaller frame.', 413);
+
+        const settings = await UserSettings.findOne({ userId: req.user._id });
+        const config = { geminiKey: settings?.geminiApiKey, chatgptKey: settings?.chatgptApiKey };
+        const analysis = await aiService.analyzeImage(base64, mimeType || 'image/jpeg', prompt, config);
+        ok(res, analysis);
     } catch (e) { fail(res, e); }
 };
 // ─── Export all data ──────────────────────────────────────────────────────────
@@ -415,17 +551,17 @@ exports.saveCareerProfile = async (req, res) => {
 
 exports.getJobs = async (req, res) => { try { ok(res, await Job.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
 exports.createJob = async (req, res) => { try { ok(res, await Job.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateJob = async (req, res) => { try { ok(res, await Job.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateJob = async (req, res) => { try { const d = await Job.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Job not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteJob = async (req, res) => { try { await Job.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getCerts = async (req, res) => { try { ok(res, await Certification.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
 exports.createCert = async (req, res) => { try { ok(res, await Certification.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateCert = async (req, res) => { try { ok(res, await Certification.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateCert = async (req, res) => { try { const d = await Certification.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Certification not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteCert = async (req, res) => { try { await Certification.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getSkills = async (req, res) => { try { ok(res, await Skill.find({ userId: req.user._id }).sort({ level: -1 })); } catch (e) { fail(res, e); } };
 exports.createSkill = async (req, res) => { try { ok(res, await Skill.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateSkill = async (req, res) => { try { ok(res, await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateSkill = async (req, res) => { try { const d = await Skill.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Skill not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteSkill = async (req, res) => { try { await Skill.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.processCv = async (req, res) => {
@@ -496,12 +632,12 @@ exports.matchJob = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.getContacts = async (req, res) => { try { ok(res, await Contact.find({ userId: req.user._id }).sort({ lastTalked: 1 })); } catch (e) { fail(res, e); } };
 exports.createContact = async (req, res) => { try { ok(res, await Contact.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateContact = async (req, res) => { try { ok(res, await Contact.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateContact = async (req, res) => { try { const d = await Contact.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Contact not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteContact = async (req, res) => { try { await Contact.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getContentIdeas = async (req, res) => { try { ok(res, await ContentIdea.find({ userId: req.user._id }).sort({ createdAt: -1 })); } catch (e) { fail(res, e); } };
 exports.createContentIdea = async (req, res) => { try { ok(res, await ContentIdea.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); } };
-exports.updateContentIdea = async (req, res) => { try { ok(res, await ContentIdea.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); } };
+exports.updateContentIdea = async (req, res) => { try { const d = await ContentIdea.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true }); if (!d) return notFound(res, 'Idea not found'); ok(res, d); } catch (e) { fail(res, e); } };
 exports.deleteContentIdea = async (req, res) => { try { await ContentIdea.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); } };
 
 exports.getSocialPlatforms = async (req, res) => { try { ok(res, await SocialPlatform.find({ userId: req.user._id })); } catch (e) { fail(res, e); } };
@@ -527,7 +663,11 @@ exports.createCalendarEvent = async (req, res) => {
     try { ok(res, await CalendarEvent.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
 };
 exports.updateCalendarEvent = async (req, res) => {
-    try { ok(res, await CalendarEvent.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+    try {
+        const ev = await CalendarEvent.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true });
+        if (!ev) return notFound(res, 'Event not found');
+        ok(res, ev);
+    } catch (e) { fail(res, e); }
 };
 exports.deleteCalendarEvent = async (req, res) => {
     try { await CalendarEvent.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
@@ -599,7 +739,11 @@ exports.createWorkflowQueueItem = async (req, res) => {
     try { ok(res, await WorkflowQueueItem.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
 };
 exports.updateWorkflowQueueItem = async (req, res) => {
-    try { ok(res, await WorkflowQueueItem.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+    try {
+        const d = await WorkflowQueueItem.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true });
+        if (!d) return notFound(res, 'Queue item not found');
+        ok(res, d);
+    } catch (e) { fail(res, e); }
 };
 exports.deleteWorkflowQueueItem = async (req, res) => {
     try { await WorkflowQueueItem.findOneAndDelete({ _id: req.params.id, userId: req.user._id }); ok(res, {}); } catch (e) { fail(res, e); }
@@ -612,7 +756,11 @@ exports.createWorkflowDMActivity = async (req, res) => {
     try { ok(res, await WorkflowDMActivity.create({ ...req.body, userId: req.user._id })); } catch (e) { fail(res, e); }
 };
 exports.updateWorkflowDMActivity = async (req, res) => {
-    try { ok(res, await WorkflowDMActivity.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, req.body, { new: true })); } catch (e) { fail(res, e); }
+    try {
+        const d = await WorkflowDMActivity.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, sanitize(req.body), { new: true });
+        if (!d) return notFound(res, 'DM activity not found');
+        ok(res, d);
+    } catch (e) { fail(res, e); }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

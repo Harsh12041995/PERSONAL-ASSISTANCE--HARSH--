@@ -1,6 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const p = require('../controllers/personal');
+const pushCtrl = require('../controllers/push');
+const focusCtrl = require('../controllers/focus');
+const ritualsCtrl = require('../controllers/rituals');
+
+// ── Daily rituals (morning plan / evening reflection) ──────────────────────────
+router.get('/rituals/weekly', ritualsCtrl.getWeeklyReview);
+router.get('/rituals', ritualsCtrl.getRituals);
+router.get('/rituals/:date', ritualsCtrl.getRitual);
+router.put('/rituals/:date', ritualsCtrl.saveRitual);
+
+// ── Focus sessions + gamification ──────────────────────────────────────────────
+router.get('/focus', focusCtrl.getFocusSessions);
+router.post('/focus', focusCtrl.createFocusSession);
+router.delete('/focus/:id', focusCtrl.deleteFocusSession);
+router.get('/gamification', focusCtrl.getGamification);
+
+// ── Web Push (notifications) ───────────────────────────────────────────────────
+router.get('/push/vapid', pushCtrl.getVapid);
+router.post('/push/subscribe', pushCtrl.subscribe);
+router.post('/push/unsubscribe', pushCtrl.unsubscribe);
+router.post('/push/test', pushCtrl.sendTest);
 
 // ── Captures ─────────────────────────────────────────────────────────────────
 router.get('/captures', p.getCaptures);
@@ -19,6 +40,7 @@ router.post('/tasks/analyze', p.analyzeTasks);
 // ── Finance ───────────────────────────────────────────────────────────────────
 router.get('/finance', p.getTransactions);
 router.post('/finance', p.createTransaction);
+router.put('/finance/:id', p.updateTransaction);
 router.delete('/finance/:id', p.deleteTransaction);
 router.get('/budgets', p.getBudgets);
 router.post('/budgets', p.upsertBudget);
@@ -39,6 +61,7 @@ router.put('/goals/:id', p.updateGoal);
 router.delete('/goals/:id', p.deleteGoal);
 
 // ── Health / Habits ───────────────────────────────────────────────────────────
+router.get('/health', p.getHealthRange);
 router.get('/health/:date', p.getHealthDay);
 router.post('/health/:date', p.saveHealthDay);
 router.put('/health/:date', p.saveHealthDay);
@@ -55,6 +78,7 @@ router.put('/settings', p.saveSettings);
 // ── AI Intelligence ──────────────────────────────────────────────────────────
 router.get('/intelligence/dashboard', p.getAiDashboardInsights);
 router.post('/intelligence/refine', p.refineTranscript);
+router.post('/intelligence/analyze-image', p.analyzeImage);
 
 // ── Journal ───────────────────────────────────────────────────────────────────
 router.get('/journal', p.getJournals);

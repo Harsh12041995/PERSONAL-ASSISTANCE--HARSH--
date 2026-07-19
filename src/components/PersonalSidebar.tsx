@@ -110,6 +110,12 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const FocusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v.756a9 9 0 11-1.5 0V3a.75.75 0 01.75-.75zm0 6a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 0112 8.25z" clipRule="evenodd" />
+  </svg>
+);
+
 // ─── Navigation Configuration ─────────────────────────────────────────────────
 
 interface NavItem {
@@ -123,6 +129,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "home", icon: <HomeIcon />, name: "Home", path: "/", accent: "bg-violet-500", emoji: "🏠" },
+  { id: "hq", icon: <GoalsIcon />, name: "Command Center", path: "/hq", accent: "bg-violet-600", emoji: "🎯" },
+  { id: "portfolio", icon: <WorkflowIcon />, name: "Portfolio", path: "/portfolio", accent: "bg-amber-600", emoji: "🗂️" },
   { id: "capture", icon: <CaptureIcon />, name: "Quick Capture", path: "/capture", accent: "bg-amber-500", emoji: "📝" },
   { id: "tasks", icon: <TaskIcon />, name: "Tasks & Habits", path: "/personal-tasks", accent: "bg-emerald-500", emoji: "✅" },
   { id: "calendar", icon: <CalendarIcon />, name: "Calendar", path: "/calendar", accent: "bg-sky-500", emoji: "📅" },
@@ -130,11 +138,13 @@ const NAV_ITEMS: NavItem[] = [
   { id: "knowledge", icon: <KnowledgeIcon />, name: "Knowledge", path: "/knowledge", accent: "bg-indigo-500", emoji: "🧠" },
   { id: "goals", icon: <GoalsIcon />, name: "Goals", path: "/goals", accent: "bg-pink-500", emoji: "🎯" },
   { id: "health", icon: <HealthIcon />, name: "Health", path: "/health", accent: "bg-rose-500", emoji: "💪" },
+  { id: "focus", icon: <FocusIcon />, name: "Focus", path: "/focus", accent: "bg-red-500", emoji: "🍅" },
+  { id: "rituals", icon: <FocusIcon />, name: "Daily Rituals", path: "/rituals", accent: "bg-amber-500", emoji: "🌅" },
   { id: "career", icon: <CareerIcon />, name: "Career", path: "/career", accent: "bg-orange-500", emoji: "💼" },
   { id: "social", icon: <SocialIcon />, name: "Social Life", path: "/social", accent: "bg-fuchsia-500", emoji: "📱" },
   { id: "blogs", icon: <BlogsIcon />, name: "Blogs", path: "/blogs", accent: "bg-cyan-500", emoji: "🌍" },
   { id: "workflow", icon: <WorkflowIcon />, name: "Workflow Manager", path: "/workflow-manager", accent: "bg-emerald-500", emoji: "⚙️" },
-  { id: "ai", icon: <AiIcon />, name: "AI Assistant", path: "/ai-chat", accent: "bg-cyan-500", emoji: "🤖" },
+  { id: "agent", icon: <AiIcon />, name: "AI Assistant", path: "/agent", accent: "bg-indigo-500", emoji: "🧩" },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [
@@ -209,8 +219,8 @@ const PersonalSidebar: React.FC = () => {
             group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
             transition-all duration-200 ease-out
             ${active
-              ? "bg-white shadow-md text-gray-900 border border-gray-100"
-              : "text-gray-500 hover:text-gray-800 hover:bg-white/60"
+              ? "bg-white shadow-md text-gray-900 border border-gray-100 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+              : "text-gray-500 hover:text-gray-800 hover:bg-white/60 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800/60"
             }
             ${!isOpen ? "justify-center" : "justify-start"}
           `}
@@ -222,7 +232,7 @@ const PersonalSidebar: React.FC = () => {
           )}
 
           {/* Icon */}
-          <span className={`flex-shrink-0 transition-colors duration-200 ${active ? "text-gray-800" : "text-gray-400 group-hover:text-gray-700"}`}>
+          <span className={`flex-shrink-0 transition-colors duration-200 ${active ? "text-gray-800 dark:text-gray-100" : "text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200"}`}>
             {item.icon}
           </span>
 
@@ -249,7 +259,7 @@ const PersonalSidebar: React.FC = () => {
     <aside
       className={`
         fixed top-0 left-0 h-screen flex flex-col transition-all duration-300 z-50
-        bg-gray-50/95 backdrop-blur-xl border-r border-gray-200/70
+        bg-gray-50/95 backdrop-blur-xl border-r border-gray-200/70 dark:bg-gray-900/95 dark:border-gray-800
         ${isOpen ? "w-[240px]" : "w-[72px]"}
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0
         shadow-xl
@@ -258,14 +268,14 @@ const PersonalSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Logo / Brand ───────────────────────────────────────────── */}
-      <div className={`flex items-center border-b border-gray-200/70 bg-white ${isOpen ? "px-4 py-4 gap-3" : "px-0 py-4 justify-center"}`}>
+      <div className={`flex items-center border-b border-gray-200/70 bg-white dark:bg-gray-900 dark:border-gray-800 ${isOpen ? "px-4 py-4 gap-3" : "px-0 py-4 justify-center"}`}>
         {isOpen ? (
           <>
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-200 flex-shrink-0">
               <span className="text-white text-base font-bold">H</span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-900 leading-tight">{firstName}'s Space</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{firstName}'s Space</p>
               <p className="text-[11px] text-gray-400 truncate">Personal Command Center</p>
             </div>
           </>
@@ -278,9 +288,9 @@ const PersonalSidebar: React.FC = () => {
 
       {/* ── Greeting Card (only when open) ────────────────────────── */}
       {isOpen && (
-        <div className="mx-3 mt-3 p-3 bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-100">
-          <p className="text-[11px] text-violet-500 font-medium">{getGreeting()},</p>
-          <p className="text-sm font-bold text-violet-900">{firstName} 👋</p>
+        <div className="mx-3 mt-3 p-3 bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-100 dark:from-violet-950/40 dark:to-indigo-950/40 dark:border-violet-900/50">
+          <p className="text-[11px] text-violet-500 font-medium dark:text-violet-400">{getGreeting()},</p>
+          <p className="text-sm font-bold text-violet-900 dark:text-violet-100">{firstName} 👋</p>
           <p className="text-[10px] text-violet-400 mt-0.5">
             {currentTime.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}
           </p>
@@ -299,7 +309,7 @@ const PersonalSidebar: React.FC = () => {
         </ul>
 
         {/* Divider */}
-        <div className="mx-3 my-3 border-t border-gray-200/70" />
+        <div className="mx-3 my-3 border-t border-gray-200/70 dark:border-gray-800" />
 
         {isOpen && (
           <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
@@ -332,7 +342,7 @@ const PersonalSidebar: React.FC = () => {
       </nav>
 
       {/* ── User Footer ────────────────────────────────────────────── */}
-      <div className={`border-t border-gray-200/70 bg-white ${isOpen ? "p-3" : "p-2"}`}>
+      <div className={`border-t border-gray-200/70 bg-white dark:bg-gray-900 dark:border-gray-800 ${isOpen ? "p-3" : "p-2"}`}>
         {isOpen ? (
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
@@ -345,12 +355,12 @@ const PersonalSidebar: React.FC = () => {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-800 truncate">{user.first_name ? `${user.first_name} ${user.last_name || ''}` : (user.name || "User")}</p>
+              <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 truncate">{user.first_name ? `${user.first_name} ${user.last_name || ''}` : (user.name || "User")}</p>
               <p className="text-[10px] text-gray-400 truncate">{user.email || "Personal"}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
               title="Logout"
             >
               <LogoutIcon />

@@ -5,12 +5,17 @@ import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import PersonalSidebar from "../components/PersonalSidebar";
 import GlobalAIHub from "../components/GlobalAIHub";
+import QuickNotesPen from "../components/QuickNotesPen";
+import BookDecor from "../components/decor/BookDecor";
+import { useTheme } from "../context/ThemeContext";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const { skin } = useTheme();
 
   return (
-    <div className="min-h-screen xl:flex bg-gray-50/50">
+    <div className="min-h-screen xl:flex bg-gray-50/50 dark:bg-gray-950">
+      {skin === "book" && <BookDecor />}
       <div>
         <PersonalSidebar />
         <Backdrop />
@@ -24,6 +29,7 @@ const LayoutContent: React.FC = () => {
           <Outlet />
         </div>
         <GlobalAIHub />
+        <QuickNotesPen />
       </div>
     </div>
   );

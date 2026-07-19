@@ -1,0 +1,61 @@
+# infra/docker-compose.yml
+# The full agent tier in one command — runs on YOUR machine (dev) or YOUR
+# server (prod). This is the "second tier" that Netlify cannot host (Netlify =
+# static frontend + short serverless functions only; no Ollama, no long-lived
+# containers). Vectors live in MongoDB (see the `embeddings` collection in
+# Compass), so there is no separate vector database to run.
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#   bash infra/setup-ollama.sh        # first run: pull the models
+#
+# The API reaches sibling services by container name (mongo, ollama).
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: pa-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"           # exposed so MongoDB Compass can connect from your host
+    volumes:
+      - mongo_data:/data/db
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: pa-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # For NVIDIA GPUs, uncomment to enable acceleration:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  api:
+    build: ../backend
+    container_name: pa-api
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - ollama
+    ports:
+      - "5001:5001"
+    environment:
+      NODE_ENV: production
+      PORT: "5001"
+      MONGODB_URI: mongodb://mongo:27017/personal
+      OLLAMA_BASE_URL: http://ollama:11434
+      VECTOR_BACKEND: local
+      # Provide these via an .env file or your server's secret store:
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+
+volumes:
+  mongo_data:
+  ollama_data:

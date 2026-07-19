@@ -2,7 +2,12 @@ const Knowledge = require('../models/Knowledge');
 const Capture = require('../models/Capture');
 const WorkflowQueueItem = require('../models/WorkflowQueueItem');
 const WorkflowDMActivity = require('../models/WorkflowDMActivity');
+const UserSettings = require('../models/UserSettings');
 const aiService = require('../utils/aiService');
+
+// Split a "a, b; c" keyword string into a lowercase list.
+const parseKeywords = (s) => (s || '').split(/[,;\n]+/).map(k => k.trim().toLowerCase()).filter(Boolean);
+const matchesAny = (text, keywords) => keywords.some(k => text.includes(k));
 
 /**
  * Automation Service
@@ -65,15 +70,31 @@ const runQueueProcessor = async (userId) => {
 };
 
 /**
- * 3. DM Triage & Acknowledge
- * Automatically acknowledges new DMs based on simple rules.
+ * 3. DM Triage
+ * Categorizes new DMs using the user's own leadKeywords / urgentKeywords rules
+ * (from Settings), instead of blindly flipping everything to "acknowledged":
+ *   - message matches a lead keyword     → category 'lead'
+ *   - message matches an urgent keyword  → status 'escalated' (needs attention)
+ *   - otherwise                          → status 'acknowledged'
  */
 const runDMTriage = async (userId) => {
-    const result = await WorkflowDMActivity.updateMany(
-        { userId, status: 'new' },
-        { status: 'acknowledged' }
-    );
-    return result.modifiedCount;
+    const settings = await UserSettings.findOne({ userId });
+    const rules = settings?.workflowManager?.dmRules || {};
+    const leadKw = parseKeywords(rules.leadKeywords);
+    const urgentKw = parseKeywords(rules.urgentKeywords);
+
+    const newDMs = await WorkflowDMActivity.find({ userId, status: 'new' });
+    let processed = 0;
+    for (const dm of newDMs) {
+        const text = `${dm.sender} ${dm.message}`.toLowerCase();
+        const isLead = leadKw.length && matchesAny(text, leadKw);
+        const isUrgent = urgentKw.length && matchesAny(text, urgentKw);
+        if (isLead) dm.category = 'lead';
+        dm.status = isUrgent ? 'escalated' : 'acknowledged';
+        await dm.save();
+        processed++;
+    }
+    return processed;
 };
 
 /**

@@ -31,12 +31,69 @@ export interface ICapture {
     text: string; emoji: string; createdAt: string;
     rawText?: string;
     isRefined?: boolean;
+    source?: string;
+    archivedAt?: string | null;
+    convertedTo?: { kind: 'task' | 'goal' | 'event' | null; id: string };
 }
 export const captureApi = {
     getAll: () => api.get('/captures').then(data),
     create: (d: Omit<ICapture, '_id' | 'createdAt'>) => api.post('/captures', d).then(data),
     update: (id: string, d: Partial<ICapture>) => api.put(`/captures/${id}`, d).then(data),
     remove: (id: string) => api.delete(`/captures/${id}`).then(data),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FOCUS + GAMIFICATION
+// ═══════════════════════════════════════════════════════════════════════════════
+export interface IFocusSession { _id: string; label: string; taskId?: string | null; minutes: number; date: string; completedAt: string; }
+export interface IAchievement { id: string; emoji: string; name: string; desc: string; unlocked: boolean; }
+export interface IGamification {
+    xp: number; level: number; levelProgress: number; xpIntoLevel: number; xpForNext: number;
+    habitStreak: number; focusStreak: number;
+    stats: { tasksCompleted: number; goalsCompleted: number; transactions: number; captures: number; habitChecks: number; habitStreak: number; focusMinutes: number; focusSessions: number; focusStreak: number };
+    achievements: IAchievement[];
+}
+export const focusApi = {
+    getAll: (): Promise<{ sessions: IFocusSession[]; todayMinutes: number; totalMinutes: number }> => api.get('/focus').then(data),
+    create: (d: { label: string; minutes: number; taskId?: string | null }) => api.post('/focus', d).then(data),
+    remove: (id: string) => api.delete(`/focus/${id}`).then(data),
+};
+export const gamificationApi = {
+    get: (): Promise<IGamification> => api.get('/gamification').then(data),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DAILY RITUALS
+// ═══════════════════════════════════════════════════════════════════════════════
+export interface IRitual {
+    _id?: string; date: string;
+    morning: { intention: string; priorities: string[]; done: boolean };
+    evening: { wins: string[]; gratitude: string; tomorrow: string; rating: number; done: boolean };
+}
+export interface IRitualContext {
+    ritual: IRitual | null;
+    context: { tasks: ITask[]; events: ICalendarEvent[] };
+}
+export interface IWeeklyReview {
+    from: string; to: string; daysLogged: number; morningsPlanned: number;
+    eveningsReflected: number; avgRating: number;
+    wins: { date: string; win: string }[]; rituals: IRitual[];
+}
+export const ritualApi = {
+    getDay: (date: string): Promise<IRitualContext> => api.get(`/rituals/${date}`).then(data),
+    save: (date: string, d: Partial<IRitual>) => api.put(`/rituals/${date}`, d).then(data),
+    weekly: (): Promise<IWeeklyReview> => api.get('/rituals/weekly').then(data),
+};
+
+export interface IPushSub { endpoint: string; keys: { p256dh: string; auth: string }; }
+export const pushApi = {
+    vapid: (): Promise<{ enabled: boolean; publicKey: string }> => api.get('/push/vapid').then(data),
+    subscribe: (sub: IPushSub) => api.post('/push/subscribe', sub).then(data),
+    unsubscribe: (endpoint: string) => api.post('/push/unsubscribe', { endpoint }).then(data),
+    test: () => api.post('/push/test').then(data),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -60,11 +117,13 @@ export const taskApi = {
 export interface ITransaction {
     _id: string; type: 'income' | 'expense'; amount: number;
     category: string; note: string; date: string; emoji: string; createdAt: string;
+    recurrence?: 'none' | 'weekly' | 'monthly'; recurringId?: string | null; lastRun?: string;
 }
 export interface IBudget { _id: string; category: string; limit: number; emoji: string; period: string; color: string; }
 export const financeApi = {
     getAll: () => api.get('/finance').then(data),
     create: (d: Omit<ITransaction, '_id' | 'createdAt'>) => api.post('/finance', d).then(data),
+    update: (id: string, d: Partial<ITransaction>) => api.put(`/finance/${id}`, d).then(data),
     remove: (id: string) => api.delete(`/finance/${id}`).then(data),
 };
 export const budgetApi = {
@@ -112,6 +171,8 @@ export interface IHealthDay {
 export const healthApi = {
     getDay: (date: string) => api.get(`/health/${date}`).then(data),
     saveDay: (date: string, d: Partial<IHealthDay>) => api.put(`/health/${date}`, d).then(data),
+    getRange: (from: string, to: string): Promise<IHealthDay[]> =>
+        api.get(`/health?from=${from}&to=${to}`).then(data),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -168,10 +229,14 @@ export const careerApi = {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SOCIAL
 // ═══════════════════════════════════════════════════════════════════════════════
+export interface IInteraction {
+    date?: string; type: 'call' | 'message' | 'meeting' | 'email' | 'note'; note: string;
+}
 export interface IContact {
     _id: string; name: string; relationship: string; phone: string; email: string;
     lastTalked: string; notes: string; followUpDays: number; tags: string[];
     socialLinks: { instagram: string; linkedin: string; twitter: string; };
+    interactions?: IInteraction[];
 }
 export interface IContentIdea {
     _id: string; title: string; platform: string; status: string;
@@ -234,6 +299,7 @@ export interface IUserSettings {
         };
     };
     geminiApiKey: string; chatgptApiKey: string; currency: string; dateFormat: string;
+    habits?: { key: string; label?: string; emoji?: string }[];
 }
 export const settingsApi = {
     get: () => api.get('/settings').then(data),
@@ -315,9 +381,9 @@ export const workflowApi = {
     updateQueueItem: (id: string, d: Partial<IWorkflowQueueItem>) => api.put(`/workflow/queue/${id}`, d).then(data) as Promise<IWorkflowQueueItem>,
     deleteQueueItem: (id: string) => api.delete(`/workflow/queue/${id}`).then(data),
 
-    getDMActivity: () => api.get('/workflow/dm').then(data) as Promise<IWorkflowDMActivity[]>,
-    createDMActivity: (d: Omit<IWorkflowDMActivity, '_id'>) => api.post('/workflow/dm', d).then(data) as Promise<IWorkflowDMActivity>,
-    updateDMActivity: (id: string, d: Partial<IWorkflowDMActivity>) => api.put(`/workflow/dm/${id}`, d).then(data) as Promise<IWorkflowDMActivity>,
+    getDMActivity: () => api.get('/workflow/dm-activity').then(data) as Promise<IWorkflowDMActivity[]>,
+    createDMActivity: (d: Omit<IWorkflowDMActivity, '_id'>) => api.post('/workflow/dm-activity', d).then(data) as Promise<IWorkflowDMActivity>,
+    updateDMActivity: (id: string, d: Partial<IWorkflowDMActivity>) => api.put(`/workflow/dm-activity/${id}`, d).then(data) as Promise<IWorkflowDMActivity>,
 };
 
 export const automationApi = {
@@ -330,8 +396,8 @@ export const automationApi = {
 // ═══════════════════════════════════════════════════════════════════════════════
 export interface IDashboardStats {
     tasksToday: number; tasksDone: number; capturedToday: number;
-    goalsOnTrack: number; goalsTotal: number; habitStreak: number;
+    goalsOnTrack: number; goalsTotal: number; habitStreak: number; habitsDoneToday: number;
 }
 export const statsApi = {
-    get: () => api.get('/stats').then(data) as Promise<IDashboardStats>,
+    get: () => api.get('/dashboard/stats').then(data) as Promise<IDashboardStats>,
 };

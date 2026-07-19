@@ -7,6 +7,29 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
+/**
+ * POST /auth/change-password (protected) — set a new password and clear the
+ * admin-forced `mustChangePassword` flag. NOTE: passwords are stored plaintext
+ * to match the existing login comparison (see security follow-up in task.md);
+ * this endpoint intentionally follows that same scheme rather than diverging.
+ */
+exports.changePassword = async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        if (!newPassword || String(newPassword).length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+        }
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        user.password = newPassword;
+        user.accountConfig = { ...(user.accountConfig || {}), mustChangePassword: false };
+        await user.save();
+        res.json({ success: true, data: { mustChangePassword: false } });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
 // @desc    Register a new user (for seeding/testing)
 // @route   POST /api/v1/auth/sign-up
 exports.register = async (req, res) => {
@@ -22,7 +45,7 @@ exports.register = async (req, res) => {
             first_name,
             last_name,
             email,
-            password, // Plain text for local simplicity as requested
+            password, // hashed by the User pre-save hook
             role: {
                 name: 'Asset Engineer',
                 permissions: [] // Add default permissions if needed
@@ -57,8 +80,9 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        // Check password (plain text comaprison for local dev)
-        if (user.password !== password) {
+        // Verify password (bcrypt; legacy plaintext rows upgrade on match).
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 

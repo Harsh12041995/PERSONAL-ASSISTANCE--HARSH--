@@ -1,0 +1,41 @@
+# Scheduled trigger for the staff-agent jobs on deployments where the in-process
+# scheduler can't run (e.g. Netlify serverless). Hits the backend's service-token
+# cron endpoint. Requires two repo secrets:
+#   PUBLIC_BASE_URL  — deployed backend base, e.g. https://api.yourdomain.com
+#   SERVICE_TOKEN    — must match SERVICE_TOKEN in the backend env
+#
+# Times are UTC (GitHub cron is UTC). 07:00 IST = 01:30 UTC; Fri 16:00 IST = 10:30 UTC.
+name: staff-cron
+
+on:
+  schedule:
+    - cron: '30 1 * * *'    # daily 01:30 UTC (07:00 IST) — morning brief
+    - cron: '30 20 * * *'   # daily 20:30 UTC (02:00 IST) — ghostwriter
+    - cron: '30 10 * * 5'   # Fri 10:30 UTC (16:00 IST)  — portfolio review
+    - cron: '0 * * * *'     # hourly — RSS poll
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (morning-brief | ghostwriter-nightly | portfolio-review | rss-poll | all)'
+        default: 'all'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pick job for this schedule
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            "30 1 * * *")  echo "job=morning-brief" >> "$GITHUB_OUTPUT" ;;
+            "30 20 * * *") echo "job=ghostwriter-nightly" >> "$GITHUB_OUTPUT" ;;
+            "30 10 * * 5") echo "job=portfolio-review" >> "$GITHUB_OUTPUT" ;;
+            "0 * * * *")   echo "job=rss-poll" >> "$GITHUB_OUTPUT" ;;
+            *)             echo "job=${{ github.event.inputs.job || 'all' }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Call cron endpoint
+        run: |
+          curl -fsS -X POST "${{ secrets.PUBLIC_BASE_URL }}/api/cron/run" \
+            -H "Content-Type: application/json" \
+            -H "X-Service-Token: ${{ secrets.SERVICE_TOKEN }}" \
+            -d "{\"job\":\"${{ steps.pick.outputs.job }}\"}"

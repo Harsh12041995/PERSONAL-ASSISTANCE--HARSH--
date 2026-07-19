@@ -3,105 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon-new.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- PWA -->
+    <meta name="theme-color" content="#7c3aed" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Portal" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>%VITE_APP_TITLE%</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css"
-      rel="stylesheet"
-    />
-    <style>
-      #fw-custom-launcher {
-        position: fixed;
-        right: 0;
-        bottom: 140px; /* Adjusted position to avoid common bottom buttons */
-        background: linear-gradient(135deg, #2c2c2c 0%, #000000 100%);
-        color: white;
-        width: 36px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        border-radius: 12px 0 0 12px;
-        z-index: 99999;
-        box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-right: none;
-      }
-
-      #fw-custom-launcher:hover {
-        width: 44px;
-        background: linear-gradient(135deg, #434343 0%, #2c2c2c 100%);
-      }
-
-      #fw-custom-launcher i {
-        font-size: 24px;
-        transition: transform 0.4s ease;
-      }
-
-      #fw-custom-launcher.widget-open {
-        right: 400px; /* Moves with the widget which is usually ~400px wide */
-      }
-      
-      #fw-custom-launcher.widget-open i {
-        transform: rotate(180deg);
-      }
-
-      /* Fail-safe: hide default Freshworks launcher elements if they appear */
-      .freshwidget-button, 
-      #freshworks-header,
-      .widget-launcher {
-        display: none !important;
-      }
-    </style>
-    <!-- Freshworks Widget -->
-    <script>
-      window.fwSettings = {
-        'widget_id': 1060000002385
-      };
-      !function(){if("function"!=typeof window.FreshworksWidget){var n=function(){n.q.push(arguments)};n.q=[],window.FreshworksWidget=n}}()
-      
-      // Initialize and hide default launcher
-      FreshworksWidget('hide', 'launcher');
-
-      document.addEventListener('DOMContentLoaded', function() {
-        const launcher = document.getElementById('fw-custom-launcher');
-        
-        launcher.addEventListener('click', function() {
-          // Toggle widget state
-          if (launcher.classList.contains('widget-open')) {
-            FreshworksWidget('close');
-          } else {
-            FreshworksWidget('open');
-          }
-        });
-
-        // Listen for widget events to update our custom launcher position/icon
-        FreshworksWidget('on', 'widget:opened', function() {
-          launcher.classList.add('widget-open');
-          // For mobile or small screens, we might want to hide the launcher instead
-          if (window.innerWidth < 600) {
-            launcher.style.display = 'none';
-          }
-        });
-
-        FreshworksWidget('on', 'widget:closed', function() {
-          launcher.classList.remove('widget-open');
-          launcher.style.display = 'flex';
-          launcher.style.right = '0';
-        });
-      });
-    </script>
-    <script type='text/javascript' src='https://ind-widget.freshworks.com/widgets/1060000002385.js' async defer></script>
   </head>
   <body class="dark:bg-gray-900 text-[45%]">
     <div id="root"></div>
-    
-    <!-- Custom Freshworks Launcher -->
-    <div id="fw-custom-launcher" title="Support">
-      <i class="ri-arrow-left-s-line"></i>
-    </div>
 
     <script type="module" src="/src/main.tsx"></script>
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>

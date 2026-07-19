@@ -8,6 +8,8 @@ const WorkflowQueueItemSchema = new mongoose.Schema(
     caption: { type: String, default: '' },
     status: { type: String, enum: ['draft', 'ready', 'scheduled', 'posted'], default: 'draft' },
     scheduledAt: { type: String, default: '' },
+    postedAt: { type: Date, default: null },        // set when the (simulated) post runs
+    publishedUrl: { type: String, default: '' },    // real post URL once a live integration exists
   },
   { timestamps: true }
 );

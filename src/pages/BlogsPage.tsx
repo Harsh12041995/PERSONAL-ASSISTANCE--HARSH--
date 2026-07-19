@@ -1,213 +1,170 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageMeta from "../shared/PageMeta";
+import { staffApi, ingestApi, IBlogPostSummary, IIngestSource } from "../services/staff.api";
+import { notifyError } from "../utils/notify";
 
-type BlogCategory = "All" | "World" | "Tech" | "Business" | "Health" | "AI" | "Climate";
+// Reading Room — reads the real RSS-ingested BlogPosts (same pipeline the
+// Command Center's ghostwriter uses) instead of the old hardcoded article list.
 
-interface BlogPost {
-  id: string;
-  title: string;
-  category: Exclude<BlogCategory, "All">;
-  source: string;
-  publishedAt: string;
-  readTime: string;
-  summary: string;
-  tags: string[];
-  url: string;
-  featured?: boolean;
-}
-
-const CATEGORIES: BlogCategory[] = ["All", "World", "Tech", "Business", "Health", "AI", "Climate"];
-
-const BLOGS: BlogPost[] = [
-  {
-    id: "b1",
-    title: "How AI Agents Are Reshaping Productivity Workflows",
-    category: "AI",
-    source: "MIT Technology Review",
-    publishedAt: "2026-02-22",
-    readTime: "7 min",
-    summary: "A practical look at how autonomous assistants are moving from demos into daily operations and where human oversight still matters.",
-    tags: ["agents", "automation", "future-of-work"],
-    url: "https://www.technologyreview.com/",
-    featured: true,
-  },
-  {
-    id: "b2",
-    title: "Global Markets React to New Energy Policy Signals",
-    category: "Business",
-    source: "Financial Times",
-    publishedAt: "2026-02-21",
-    readTime: "6 min",
-    summary: "Investors are rotating into infrastructure and clean-energy assets as policy direction tightens around long-term transition goals.",
-    tags: ["markets", "energy", "policy"],
-    url: "https://www.ft.com/",
-  },
-  {
-    id: "b3",
-    title: "Digital Wellness: Protecting Focus in an Always-On World",
-    category: "Health",
-    source: "Harvard Health",
-    publishedAt: "2026-02-19",
-    readTime: "5 min",
-    summary: "Evidence-based habits for reducing cognitive overload and improving deep work capacity without burning out.",
-    tags: ["focus", "mental-health", "habits"],
-    url: "https://www.health.harvard.edu/",
-  },
-  {
-    id: "b4",
-    title: "Climate Innovation Funding Hits New Milestone",
-    category: "Climate",
-    source: "Bloomberg Green",
-    publishedAt: "2026-02-20",
-    readTime: "8 min",
-    summary: "Why climate startups in storage, grid software, and carbon analytics are attracting record enterprise partnerships.",
-    tags: ["climate", "startup", "investment"],
-    url: "https://www.bloomberg.com/green",
-  },
-  {
-    id: "b5",
-    title: "What Global Elections Mean for Tech Regulation",
-    category: "World",
-    source: "The Economist",
-    publishedAt: "2026-02-18",
-    readTime: "9 min",
-    summary: "A cross-region perspective on competition law, privacy enforcement, and AI governance priorities this year.",
-    tags: ["geopolitics", "regulation", "technology"],
-    url: "https://www.economist.com/",
-  },
-  {
-    id: "b6",
-    title: "Engineering Teams Are Redesigning Knowledge Systems",
-    category: "Tech",
-    source: "InfoQ",
-    publishedAt: "2026-02-17",
-    readTime: "6 min",
-    summary: "How teams are replacing fragmented docs with structured, queryable internal knowledge for faster execution.",
-    tags: ["engineering", "documentation", "productivity"],
-    url: "https://www.infoq.com/",
-  },
-];
+const hostOf = (link: string) => {
+    try { return new URL(link).hostname.replace(/^www\./, ''); } catch { return 'link'; }
+};
+const relDate = (iso: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
 export default function BlogsPage() {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<BlogCategory>("All");
+    const [posts, setPosts] = useState<IBlogPostSummary[]>([]);
+    const [sources, setSources] = useState<IIngestSource[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [sourceFilter, setSourceFilter] = useState('All');
+    const [newFeed, setNewFeed] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [showSources, setShowSources] = useState(false);
 
-  const filtered = useMemo(() => {
-    return BLOGS.filter((post) => {
-      const q = query.trim().toLowerCase();
-      const matchesQuery =
-        !q ||
-        post.title.toLowerCase().includes(q) ||
-        post.summary.toLowerCase().includes(q) ||
-        post.tags.join(" ").toLowerCase().includes(q);
-      const matchesCategory = category === "All" || post.category === category;
-      return matchesQuery && matchesCategory;
-    });
-  }, [query, category]);
+    const load = useCallback(() => {
+        setLoading(true);
+        staffApi.listPosts()
+            .then(setPosts)
+            .catch((e) => notifyError(e, "Couldn't load your reading feed."))
+            .finally(() => setLoading(false));
+        ingestApi.listSources().then(setSources).catch(() => setSources([]));
+    }, []);
+    useEffect(() => { load(); }, [load]);
 
-  const featured = BLOGS.find((b) => b.featured);
+    const addFeed = async () => {
+        if (!newFeed.trim() || busy) return;
+        setBusy(true);
+        try {
+            await ingestApi.createSource(newFeed.trim());
+            setNewFeed('');
+            setSources(await ingestApi.listSources());
+        } catch (e) { notifyError(e, "Couldn't add that feed — check the URL."); }
+        finally { setBusy(false); }
+    };
 
-  return (
-    <>
-      <PageMeta
-        title="Blogs | Stay Connected"
-        description="Your personal blog and awareness hub to stay connected to what is happening in the world."
-      />
+    const pullSource = async (id: string) => {
+        setBusy(true);
+        try {
+            await ingestApi.runSource(id);
+            // Refresh both the source metadata and the article list.
+            const [srcs, freshPosts] = await Promise.all([ingestApi.listSources(), staffApi.listPosts()]);
+            setSources(srcs);
+            setPosts(freshPosts);
+        } catch (e) { notifyError(e, 'Feed pull failed.'); }
+        finally { setBusy(false); }
+    };
 
-      <div className="space-y-6 pb-10">
-        <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-cyan-600 via-sky-600 to-indigo-700 p-6 text-white shadow-xl shadow-cyan-200">
-          <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-12 left-1/3 h-40 w-40 rounded-full bg-indigo-300/20 blur-2xl" />
-          <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-cyan-100">World Awareness</p>
-              <h1 className="mt-1 text-3xl font-bold">Blogs & Insights</h1>
-              <p className="mt-2 max-w-xl text-sm text-cyan-100">
-                Your reading dashboard to connect with the world, track signals, and stay aware of major shifts in technology, business, and society.
-              </p>
-            </div>
-            <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
-              <p className="text-xs text-cyan-100">Curated sources</p>
-              <p className="text-xl font-bold">{BLOGS.length} articles</p>
-            </div>
-          </div>
-        </div>
+    const removeSource = async (id: string) => {
+        try {
+            await ingestApi.deleteSource(id);
+            setSources(prev => prev.filter(s => s._id !== id));
+        } catch (e) { notifyError(e, "Couldn't delete feed."); }
+    };
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by topic, keyword, or tag..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300"
-            />
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                    category === c ? "bg-cyan-600 text-white" : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {c}
+    const hosts = useMemo(() => {
+        const set = new Set(posts.map(p => hostOf(p.link)));
+        return ['All', ...Array.from(set).filter(h => h !== 'link')];
+    }, [posts]);
+
+    const filtered = useMemo(() => posts.filter(p => {
+        const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase());
+        const matchesSource = sourceFilter === 'All' || hostOf(p.link) === sourceFilter;
+        return matchesSearch && matchesSource;
+    }), [posts, search, sourceFilter]);
+
+    return (
+        <div className="space-y-6 pb-8 max-w-4xl">
+            <PageMeta title="Reading Room" description="Your ingested blog & article feed" />
+
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">📖 Reading Room</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">Your own RSS feeds, ingested and searchable — the same source your ghostwriter draws from.</p>
+                </div>
+                <button onClick={() => setShowSources(s => !s)}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors whitespace-nowrap">
+                    {showSources ? '✕ Close' : '⚙️ Sources'}
                 </button>
-              ))}
             </div>
-          </div>
+
+            {/* Sources manager */}
+            {showSources && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">RSS / Atom feeds</p>
+                    <div className="flex gap-2">
+                        <input value={newFeed} onChange={e => setNewFeed(e.target.value)} placeholder="https://example.com/feed.xml"
+                            className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        <button onClick={addFeed} disabled={busy || !newFeed.trim()}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50 whitespace-nowrap">Add feed</button>
+                    </div>
+                    {sources.length === 0 ? (
+                        <p className="text-xs text-gray-400">No feeds yet. Add your blog's RSS URL above, then pull it.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {sources.map(s => (
+                                <div key={s._id} className="flex items-center gap-2 text-sm">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-gray-700 dark:text-gray-200 truncate">{s.label || hostOf(s.url)}</p>
+                                        <p className="text-[11px] text-gray-400 truncate">{s.url} · {s.lastStatus || 'never pulled'}{s.lastItemCount ? ` · ${s.lastItemCount} items` : ''}</p>
+                                    </div>
+                                    <button onClick={() => pullSource(s._id)} disabled={busy}
+                                        className="text-xs font-semibold text-violet-600 dark:text-violet-300 hover:underline disabled:opacity-50">Pull</button>
+                                    <button onClick={() => removeSource(s._id)}
+                                        className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">✕</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Search + source filter */}
+            <div className="flex flex-wrap gap-3">
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles…"
+                    className="flex-1 min-w-[200px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                {hosts.length > 1 && (
+                    <div className="flex gap-2 flex-wrap">
+                        {hosts.map(h => (
+                            <button key={h} onClick={() => setSourceFilter(h)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${sourceFilter === h ? 'bg-violet-600 text-white border-violet-600' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-violet-300'}`}>
+                                {h}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Feed */}
+            {loading ? (
+                <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" /></div>
+            ) : posts.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                    <p className="text-4xl mb-2">📰</p>
+                    <p className="text-sm font-medium">No articles yet.</p>
+                    <p className="text-xs mt-1">Open <button onClick={() => setShowSources(true)} className="text-violet-600 dark:text-violet-300 font-semibold hover:underline">Sources</button> and add your first RSS feed.</p>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="text-center py-16 text-gray-400"><p className="text-sm">No articles match "{search}".</p></div>
+            ) : (
+                <div className="space-y-3">
+                    {filtered.map(p => (
+                        <a key={p._id} href={p.link || '#'} target="_blank" rel="noopener noreferrer"
+                            className="block bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 hover:border-violet-200 dark:hover:border-violet-800 hover:shadow-md transition-all group">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{hostOf(p.link)}</span>
+                                {p.publishedAt && <span className="text-[11px] text-gray-400">{relDate(p.publishedAt)}</span>}
+                                {p.ghostwrittenAt && <span className="text-[10px] text-emerald-600 dark:text-emerald-400" title="Drafts generated by the ghostwriter">✍️ drafted</span>}
+                            </div>
+                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">{p.title}</h3>
+                        </a>
+                    ))}
+                </div>
+            )}
         </div>
-
-        {featured && (
-          <a
-            href={featured.url}
-            target="_blank"
-            rel="noreferrer"
-            className="block rounded-2xl border border-cyan-100 bg-cyan-50/60 p-5 transition hover:shadow-md"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700">Featured Read</p>
-            <h2 className="mt-1 text-xl font-bold text-gray-900">{featured.title}</h2>
-            <p className="mt-2 text-sm text-gray-600">{featured.summary}</p>
-            <p className="mt-3 text-xs font-medium text-cyan-700">
-              {featured.source} · {featured.readTime} · {featured.publishedAt}
-            </p>
-          </a>
-        )}
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {filtered.map((post) => (
-            <a
-              key={post.id}
-              href={post.url}
-              target="_blank"
-              rel="noreferrer"
-              className="group rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">{post.category}</span>
-                <span className="text-[11px] text-gray-400">{post.readTime}</span>
-              </div>
-              <h3 className="text-base font-bold text-gray-900 group-hover:text-cyan-700">{post.title}</h3>
-              <p className="mt-2 text-sm text-gray-600">{post.summary}</p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {post.tags.slice(0, 3).map((tag) => (
-                  <span key={tag} className="rounded-lg bg-cyan-50 px-2 py-1 text-[10px] font-medium text-cyan-700">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-4 text-xs text-gray-400">
-                {post.source} · {post.publishedAt}
-              </p>
-            </a>
-          ))}
-        </div>
-
-        {!filtered.length && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">
-            No blogs found for this filter. Try another category or keyword.
-          </div>
-        )}
-      </div>
-    </>
-  );
+    );
 }

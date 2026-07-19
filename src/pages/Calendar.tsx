@@ -6,8 +6,10 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { EventInput, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { Modal } from "../components/ui/modal";
 import { useModal } from "../hooks/useModal";
+import { useNavigate } from "react-router-dom";
 import PageMeta from "../shared/PageMeta";
-import { calendarApi } from "../services/personalApi";
+import { calendarApi, taskApi, goalApi } from "../services/personalApi";
+import { localDate } from "../utils/date";
 
 interface CalendarEvent extends EventInput {
   id: string;
@@ -23,7 +25,12 @@ const Calendar: React.FC = () => {
   const [eventEndDate, setEventEndDate] = useState("");
   const [eventLevel, setEventLevel] = useState("Primary");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [overlays, setOverlays] = useState<EventInput[]>([]);
+  const [allDay, setAllDay] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const calendarRef = useRef<FullCalendar>(null);
+  const navigate = useNavigate();
   const { isOpen, openModal, closeModal } = useModal();
 
   const calendarsEvents = {
@@ -47,29 +54,86 @@ const Calendar: React.FC = () => {
       setEvents(mapped);
     } catch (e) {
       console.error("Failed to load calendar events", e);
+      setError("Couldn't load your calendar. Check your connection and retry.");
     }
+  };
+
+  // Read-only overlays: task due dates + goal deadlines, shown as background
+  // events. Clicking one navigates to its page rather than editing here.
+  const loadOverlays = async () => {
+    try {
+      const [tasks, goals] = await Promise.all([taskApi.getAll(), goalApi.getAll()]);
+      const taskOverlays: EventInput[] = (tasks || [])
+        .filter((t: { dueDate?: string | null; done?: boolean }) => t.dueDate && !t.done)
+        .map((t: { _id: string; title: string; dueDate: string }) => ({
+          id: `task-${t._id}`, title: `📋 ${t.title}`, start: t.dueDate.slice(0, 10),
+          allDay: true, display: "background", editable: false,
+          backgroundColor: "rgba(139,92,246,0.15)", extendedProps: { overlay: "task" },
+        }));
+      const goalOverlays: EventInput[] = (goals || [])
+        .filter((g: { deadline?: string | null }) => g.deadline)
+        .map((g: { _id: string; title: string; deadline: string }) => ({
+          id: `goal-${g._id}`, title: `🎯 ${g.title}`, start: g.deadline.slice(0, 10),
+          allDay: true, display: "background", editable: false,
+          backgroundColor: "rgba(245,158,11,0.15)", extendedProps: { overlay: "goal" },
+        }));
+      setOverlays([...taskOverlays, ...goalOverlays]);
+    } catch { setOverlays([]); }
   };
 
   useEffect(() => {
     loadEvents();
+    loadOverlays();
   }, []);
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     resetModalFields();
-    setEventStartDate(selectInfo.startStr);
-    setEventEndDate(selectInfo.endStr || selectInfo.startStr);
+    setAllDay(selectInfo.allDay);
+    if (selectInfo.allDay) {
+      setEventStartDate(selectInfo.start ? localDate(selectInfo.start) : "");
+      setEventEndDate(selectInfo.end ? localDate(selectInfo.end) : (selectInfo.start ? localDate(selectInfo.start) : ""));
+    } else {
+      setEventStartDate(selectInfo.start ? toLocalInput(selectInfo.start) : "");
+      setEventEndDate(selectInfo.end ? toLocalInput(selectInfo.end) : "");
+    }
     setEventLevel("Primary");
     openModal();
   };
 
+  // datetime-local wants "YYYY-MM-DDTHH:mm" in local time.
+  const toLocalInput = (d: Date) => {
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+
   const handleEventClick = (clickInfo: EventClickArg) => {
     const event = clickInfo.event;
+    // Overlays (task due dates / goal deadlines) aren't editable here — jump to their page.
+    const overlay = event.extendedProps?.overlay;
+    if (overlay) { navigate(overlay === "goal" ? "/goals" : "/personal-tasks"); return; }
+    const isAllDay = event.allDay;
+    setAllDay(isAllDay);
     setSelectedEvent(event as unknown as CalendarEvent);
     setEventTitle(event.title);
-    setEventStartDate(event.start?.toISOString().split("T")[0] || "");
-    setEventEndDate(event.end?.toISOString().split("T")[0] || "");
+    setEventStartDate(event.start ? (isAllDay ? localDate(event.start) : toLocalInput(event.start)) : "");
+    setEventEndDate(event.end ? (isAllDay ? localDate(event.end) : toLocalInput(event.end)) : "");
     setEventLevel(event.extendedProps.calendar || "Primary");
     openModal();
+  };
+
+  // Drag-to-reschedule / resize → persist the new start/end.
+  const handleEventChange = async (info: { event: { id: string; startStr: string; endStr: string; allDay: boolean }; revert: () => void }) => {
+    const { id, startStr, endStr, allDay: isAllDay } = info.event;
+    if (id.startsWith("task-") || id.startsWith("goal-")) { info.revert(); return; }
+    try {
+      const updated = await calendarApi.update(id, { start: startStr, end: endStr || startStr, allDay: isAllDay });
+      if (!updated) throw new Error("not found");
+      setEvents((prev) => prev.map((ev) => ev.id === id ? { ...ev, start: startStr, end: endStr || startStr, allDay: isAllDay } : ev));
+    } catch (e) {
+      console.error("Failed to reschedule event", e);
+      setError("Couldn't move the event — reverted.");
+      info.revert();
+    }
   };
 
   const handleAddOrUpdateEvent = async () => {
@@ -80,12 +144,15 @@ const Calendar: React.FC = () => {
       start: eventStartDate,
       end: eventEndDate || eventStartDate,
       calendar: eventLevel || "Primary",
-      allDay: true,
+      allDay,
     };
 
+    setSaving(true);
+    setError("");
     try {
       if (selectedEvent?.id) {
         const updated = await calendarApi.update(selectedEvent.id, payload);
+        if (!updated) throw new Error("Event not found");
         setEvents((prev) =>
           prev.map((event) =>
             event.id === selectedEvent.id
@@ -95,6 +162,7 @@ const Calendar: React.FC = () => {
                   title: updated.title,
                   start: updated.start,
                   end: updated.end,
+                  allDay: updated.allDay ?? true,
                   extendedProps: { calendar: updated.calendar || "Primary" },
                 }
               : event
@@ -112,12 +180,15 @@ const Calendar: React.FC = () => {
         };
         setEvents((prevEvents) => [...prevEvents, newEvent]);
       }
+      // Only dismiss the modal once the save actually succeeded.
+      closeModal();
+      resetModalFields();
     } catch (e) {
       console.error("Failed saving event", e);
+      setError("Couldn't save the event — please try again.");
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
-    resetModalFields();
   };
 
   const handleDeleteEvent = async () => {
@@ -129,6 +200,7 @@ const Calendar: React.FC = () => {
       resetModalFields();
     } catch (e) {
       console.error("Failed deleting event", e);
+      setError("Couldn't delete the event — please try again.");
     }
   };
 
@@ -138,6 +210,8 @@ const Calendar: React.FC = () => {
     setEventEndDate("");
     setEventLevel("Primary");
     setSelectedEvent(null);
+    setAllDay(true);
+    setError("");
   };
 
   return (
@@ -146,6 +220,9 @@ const Calendar: React.FC = () => {
         title="Personal Calendar"
         description="Manage your personal events and schedule"
       />
+      {error && !isOpen && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:bg-red-950/40">{error}</p>
+      )}
       <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="custom-calendar">
           <FullCalendar
@@ -157,8 +234,11 @@ const Calendar: React.FC = () => {
               center: "title",
               right: "dayGridMonth,timeGridWeek,timeGridDay",
             }}
-            events={events}
+            events={[...events, ...overlays]}
             selectable={true}
+            editable={true}
+            eventDrop={handleEventChange}
+            eventResize={handleEventChange}
             select={handleDateSelect}
             eventClick={handleEventClick}
             eventContent={renderEventContent}
@@ -229,11 +309,16 @@ const Calendar: React.FC = () => {
                 </div>
               </div>
 
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-400 cursor-pointer">
+                <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="accent-brand-500 w-4 h-4" />
+                All-day event
+              </label>
+
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Enter Start Date</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Start {allDay ? "date" : "time"}</label>
                 <input
                   id="event-start-date"
-                  type="date"
+                  type={allDay ? "date" : "datetime-local"}
                   value={eventStartDate}
                   onChange={(e) => setEventStartDate(e.target.value)}
                   className="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
@@ -241,16 +326,19 @@ const Calendar: React.FC = () => {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Enter End Date</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">End {allDay ? "date" : "time"}</label>
                 <input
                   id="event-end-date"
-                  type="date"
+                  type={allDay ? "date" : "datetime-local"}
                   value={eventEndDate}
                   onChange={(e) => setEventEndDate(e.target.value)}
                   className="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                 />
               </div>
             </div>
+            {error && (
+              <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{error}</p>
+            )}
             <div className="mt-6 flex flex-wrap items-center gap-3 modal-footer sm:justify-end">
               {selectedEvent && (
                 <button
@@ -271,9 +359,10 @@ const Calendar: React.FC = () => {
               <button
                 onClick={handleAddOrUpdateEvent}
                 type="button"
-                className="btn btn-success btn-update-event flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto"
+                disabled={saving}
+                className="btn btn-success btn-update-event flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60 sm:w-auto"
               >
-                {selectedEvent ? "Update Changes" : "Add Event"}
+                {saving ? "Saving…" : selectedEvent ? "Update Changes" : "Add Event"}
               </button>
             </div>
           </div>

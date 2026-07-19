@@ -1,19 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { captureApi, ICapture } from '../services/personalApi';
+import { toast } from 'react-toastify';
+import { captureApi, taskApi, goalApi, calendarApi, financeApi, ICapture } from '../services/personalApi';
+import { CAPTURE_TYPES, CaptureType, captureMeta } from '../constants/capture';
+import { localToday } from '../utils/date';
+import { notifyError } from '../utils/notify';
+import { parseSmartCapture, toLocalDate, toLocalDateTime } from '../utils/smartCapture';
 import VoiceTranscriber from '../components/VoiceTranscriber';
 
-type CaptureType = ICapture['type'];
-
-const CAPTURE_TYPES: { type: CaptureType; emoji: string; label: string; color: string; bg: string }[] = [
-    { type: 'Idea', emoji: '💡', label: 'Idea', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-    { type: 'Task', emoji: '✅', label: 'Task', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    { type: 'Article', emoji: '📰', label: 'Article', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
-    { type: 'Follow-up', emoji: '📞', label: 'Follow-up', color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
-    { type: 'Money', emoji: '💰', label: 'Money', color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
-    { type: 'Urgent', emoji: '🔴', label: 'Urgent', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
-    { type: 'Journal', emoji: '📓', label: 'Journal', color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
-];
+const PAGE_SIZE = 30;
 
 export default function CapturePage() {
     const [captures, setCaptures] = useState<ICapture[]>([]);
@@ -21,6 +16,7 @@ export default function CapturePage() {
     const [selectedType, setSelectedType] = useState<CaptureType>('Idea');
     const [filterType, setFilterType] = useState<CaptureType | 'All'>('All');
     const [submitted, setSubmitted] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showVoice, setShowVoice] = useState(false);
@@ -43,9 +39,10 @@ export default function CapturePage() {
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        if (!text.trim()) return;
+        if (!text.trim() || saving) return;
 
-        const tc = CAPTURE_TYPES.find(c => c.type === selectedType)!;
+        const tc = captureMeta(selectedType);
+        setSaving(true);
         try {
             const saved = await captureApi.create({
                 type: selectedType,
@@ -59,6 +56,47 @@ export default function CapturePage() {
             setSubmitted(true);
             setTimeout(() => setSubmitted(false), 2000);
         } catch { setError('Failed to save.'); }
+        finally { setSaving(false); }
+    };
+
+    // ── Smart Capture (NLP) ──────────────────────────────────────────────────
+    const [smartDismissed, setSmartDismissed] = useState(false);
+    const [smartBusy, setSmartBusy] = useState(false);
+    const smart = useMemo(() => parseSmartCapture(text), [text]);
+    // Only offer a suggestion once there's something meaningful to act on.
+    const showSmart = !smartDismissed && text.trim().length > 3 && smart.kind !== null;
+    // Reset the dismissal whenever the text changes materially.
+    useEffect(() => { setSmartDismissed(false); }, [text]);
+
+    const createSmart = async () => {
+        if (!smart.kind || smartBusy) return;
+        setSmartBusy(true);
+        try {
+            const title = smart.cleanText || text.trim();
+            if (smart.kind === 'event' && smart.date) {
+                await calendarApi.create({
+                    title, calendar: 'Primary', allDay: !smart.hasTime,
+                    start: smart.hasTime ? toLocalDateTime(smart.date) : toLocalDate(smart.date),
+                    end: smart.hasTime ? toLocalDateTime(smart.date) : toLocalDate(smart.date),
+                });
+                toast.success(`📅 Event created — ${smart.label.replace('📅 Event · ', '')}`);
+            } else if (smart.kind === 'task') {
+                await taskApi.create({
+                    title, priority: 'medium', area: 'Personal', tab: 'today', done: false,
+                    dueDate: smart.date ? toLocalDate(smart.date) : null,
+                });
+                toast.success('✅ Task created' + (smart.date ? ` — due ${toLocalDate(smart.date)}` : ''));
+            } else if (smart.kind === 'finance' && smart.amount !== null) {
+                await financeApi.create({
+                    type: smart.financeType, amount: smart.amount, category: smart.financeCategory,
+                    note: title, emoji: '💰', date: smart.date ? toLocalDate(smart.date) : localToday(),
+                    ...(smart.recurrence === 'weekly' || smart.recurrence === 'monthly' ? { recurrence: smart.recurrence } : {}),
+                });
+                toast.success(`💰 ${smart.financeType === 'income' ? 'Income' : 'Expense'} logged — ₹${smart.amount.toLocaleString('en-IN')}${smart.recurrence ? ` (${smart.recurrence})` : ''}`);
+            }
+            setText('');
+        } catch (e) { notifyError(e, 'Could not create from smart capture.'); }
+        finally { setSmartBusy(false); }
     };
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -69,7 +107,40 @@ export default function CapturePage() {
         } catch { setError('Failed to delete.'); }
     };
 
-    const filtered = filterType === 'All' ? captures : captures.filter(c => c.type === filterType);
+    // ── Archive ────────────────────────────────────────────────────────────────
+    const handleArchive = async (cap: ICapture) => {
+        try {
+            const updated = await captureApi.update(cap._id, { archivedAt: new Date().toISOString() });
+            if (updated) setCaptures(prev => prev.map(c => c._id === cap._id ? updated : c));
+        } catch (e) { notifyError(e, 'Failed to archive.'); }
+    };
+
+    // ── Convert → Task / Goal / Event ───────────────────────────────────────────
+    const handleConvert = async (cap: ICapture, kind: 'task' | 'goal' | 'event') => {
+        try {
+            let id = '';
+            if (kind === 'task') {
+                const t = await taskApi.create({ title: cap.text, priority: 'medium', area: 'Personal', tab: 'today', done: false, dueDate: null });
+                id = t._id;
+            } else if (kind === 'goal') {
+                const g = await goalApi.create({ title: cap.text, area: 'Personal', emoji: '🎯', progress: 0, deadline: null, milestones: [] });
+                id = g._id;
+            } else {
+                const ev = await calendarApi.create({ title: cap.text, start: localToday(), end: localToday(), calendar: 'Primary', allDay: true });
+                id = ev._id;
+            }
+            // Link the capture to its new record and archive it out of the inbox.
+            const updated = await captureApi.update(cap._id, { convertedTo: { kind, id }, archivedAt: new Date().toISOString() });
+            if (updated) setCaptures(prev => prev.map(c => c._id === cap._id ? updated : c));
+            toast.success(`Converted to ${kind} ✓`);
+        } catch (e) { notifyError(e, `Couldn't convert to ${kind}.`); }
+    };
+
+    const [showArchived, setShowArchived] = useState(false);
+    const [page, setPage] = useState(1);
+    const byArchive = captures.filter(c => showArchived ? c.archivedAt : !c.archivedAt);
+    const byType = filterType === 'All' ? byArchive : byArchive.filter(c => c.type === filterType);
+    const filtered = byType.slice(0, page * PAGE_SIZE);
     const getTypeConf = (type: CaptureType) => CAPTURE_TYPES.find(c => c.type === type)!;
     const relTime = (iso: string) => {
         const diff = Date.now() - new Date(iso).getTime();
@@ -119,13 +190,29 @@ export default function CapturePage() {
                                 🎙️ Record Voice Journal
                             </button>
                         </div>
-                        <button type="submit"
-                            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200
+                        <button type="submit" disabled={saving || !text.trim()}
+                            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-50
                                 ${submitted ? 'bg-emerald-500 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`}>
-                            {submitted ? '✓ Captured!' : `Save ${CAPTURE_TYPES.find(c => c.type === selectedType)?.emoji}`}
+                            {submitted ? '✓ Captured!' : saving ? 'Saving…' : `Save ${captureMeta(selectedType).emoji}`}
                         </button>
                     </div>
                 </form>
+
+                {/* Smart Capture suggestion */}
+                {showSmart && (
+                    <div className="mt-3 flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 animate-in fade-in">
+                        <span className="text-lg">✨</span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-violet-700">{smart.label}</p>
+                            <p className="text-xs text-gray-500 truncate">“{smart.cleanText}”</p>
+                        </div>
+                        <button onClick={createSmart} disabled={smartBusy}
+                            className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold whitespace-nowrap disabled:opacity-50">
+                            {smartBusy ? '…' : smart.kind === 'event' ? 'Add to calendar' : smart.kind === 'task' ? 'Create task' : 'Log it'}
+                        </button>
+                        <button onClick={() => setSmartDismissed(true)} title="Dismiss" className="text-gray-400 hover:text-gray-600 text-xs px-1">✕</button>
+                    </div>
+                )}
             </div>
 
             {/* Filter + List */}
@@ -147,6 +234,10 @@ export default function CapturePage() {
                             </button>
                         );
                     })}
+                    <button onClick={() => { setShowArchived(s => !s); setPage(1); }}
+                        className={`ml-auto flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${showArchived ? 'bg-gray-800 text-white border-gray-800' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}>
+                        🗄 {showArchived ? 'Archived' : 'Show archived'}
+                    </button>
                 </div>
 
                 {loading ? (
@@ -172,7 +263,18 @@ export default function CapturePage() {
                                             <span className="text-[10px] text-gray-400">{relTime(cap.createdAt)}</span>
                                         </div>
                                         <p className="text-sm text-gray-800 leading-snug">{cap.text}</p>
+                                        {cap.convertedTo?.kind && (
+                                            <span className="inline-block mt-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">→ converted to {cap.convertedTo.kind}</span>
+                                        )}
                                     </div>
+                                    {!cap.archivedAt && !cap.convertedTo?.kind && (
+                                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
+                                            <button onClick={() => handleConvert(cap, 'task')} title="Convert to task" className="p-1 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 text-xs">✅</button>
+                                            <button onClick={() => handleConvert(cap, 'goal')} title="Convert to goal" className="p-1 rounded-lg text-gray-400 hover:text-pink-600 hover:bg-pink-50 text-xs">🎯</button>
+                                            <button onClick={() => handleConvert(cap, 'event')} title="Convert to calendar event" className="p-1 rounded-lg text-gray-400 hover:text-sky-600 hover:bg-sky-50 text-xs">📅</button>
+                                            <button onClick={() => handleArchive(cap)} title="Archive" className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-xs">🗄</button>
+                                        </div>
+                                    )}
                                     <button onClick={() => handleDelete(cap._id)}
                                         className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -180,6 +282,11 @@ export default function CapturePage() {
                                 </div>
                             );
                         })}
+                        {byType.length > filtered.length && (
+                            <button onClick={() => setPage(p => p + 1)} className="w-full py-2 rounded-xl text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors">
+                                Load more ({byType.length - filtered.length} more)
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
