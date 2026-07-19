@@ -29,6 +29,7 @@ import KnowledgePage from "./pages/KnowledgePage";
 import GoalsPage from "./pages/GoalsPage";
 import HealthPage from "./pages/HealthPage";
 import FocusPage from "./pages/FocusPage";
+import RitualsPage from "./pages/RitualsPage";
 import CareerPage from "./pages/CareerPage";
 import SocialPage from "./pages/SocialPage";
 import AgentPage from "./pages/AgentPage";
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="/goals" element={<ProtectedRoute requiredPermission="tasks"><GoalsPage /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute requiredPermission="tasks"><HealthPage /></ProtectedRoute>} />
           <Route path="/focus" element={<ProtectedRoute requiredPermission="tasks"><FocusPage /></ProtectedRoute>} />
+          <Route path="/rituals" element={<ProtectedRoute requiredPermission="tasks"><RitualsPage /></ProtectedRoute>} />
           <Route path="/career" element={<ProtectedRoute requiredPermission="tasks"><CareerPage /></ProtectedRoute>} />
           <Route path="/social" element={<ProtectedRoute requiredPermission="social"><SocialPage /></ProtectedRoute>} />
           <Route path="/blogs" element={<ProtectedRoute requiredPermission="blogs"><BlogsPage /></ProtectedRoute>} />

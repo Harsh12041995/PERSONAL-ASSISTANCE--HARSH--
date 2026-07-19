@@ -6,6 +6,21 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 5.4: Daily Rituals (morning / evening / weekly) ([task.md](../task.md) Phase 5)
+
+The daily-driver workflow that makes the tool change your day. Branch `feat/phase-5-product`.
+
+### Added
+- **`DailyRitual`** model (unique per user+day) with `morning{intention, priorities[], done}` and `evening{wins[], gratitude, tomorrow, rating, done}`.
+- **Endpoints**: `GET /personal/rituals/:date` returns the day's ritual **plus morning context** (today's open tasks + today's calendar events); `PUT /personal/rituals/:date` upsert-merges (saving the evening keeps the morning); `GET /personal/rituals/weekly` aggregates the last 7 days (days logged, mornings planned, evenings reflected, avg rating, the week's wins). Input sanitized (priority/win caps, rating clamp 0–5).
+- **`RitualsPage`** (`/rituals` route + sidebar 🌅): a morning card (intention + top-3 priorities with tap-to-pull from today's tasks) and an evening card (wins list, gratitude, tomorrow, 5-emoji day rating), plus a **This Week** review with the running list of wins.
+
+### Verification
+- Backend harness (supertest, scratch DB `ceostest`, **13/13 PASS**): empty-day returns `ritual:null` + today's task in context; morning save trims blanks (3→2); evening save clamps rating 7→5 and **preserves the morning**; exactly one doc per day (unique upsert); weekly review reports `daysLogged=1`, the win, and `avgRating=5`.
+- `corepack yarn build` green; eslint clean on `RitualsPage.tsx`.
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 5.3: Focus & Streaks (Pomodoro + gamification) ([task.md](../task.md) Phase 5)
 
 The retention engine. Branch `feat/phase-5-product`.

@@ -139,6 +139,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "goals", icon: <GoalsIcon />, name: "Goals", path: "/goals", accent: "bg-pink-500", emoji: "🎯" },
   { id: "health", icon: <HealthIcon />, name: "Health", path: "/health", accent: "bg-rose-500", emoji: "💪" },
   { id: "focus", icon: <FocusIcon />, name: "Focus", path: "/focus", accent: "bg-red-500", emoji: "🍅" },
+  { id: "rituals", icon: <FocusIcon />, name: "Daily Rituals", path: "/rituals", accent: "bg-amber-500", emoji: "🌅" },
   { id: "career", icon: <CareerIcon />, name: "Career", path: "/career", accent: "bg-orange-500", emoji: "💼" },
   { id: "social", icon: <SocialIcon />, name: "Social Life", path: "/social", accent: "bg-fuchsia-500", emoji: "📱" },
   { id: "blogs", icon: <BlogsIcon />, name: "Blogs", path: "/blogs", accent: "bg-cyan-500", emoji: "🌍" },

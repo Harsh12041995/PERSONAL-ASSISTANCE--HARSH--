@@ -3,6 +3,13 @@ const router = express.Router();
 const p = require('../controllers/personal');
 const pushCtrl = require('../controllers/push');
 const focusCtrl = require('../controllers/focus');
+const ritualsCtrl = require('../controllers/rituals');
+
+// ── Daily rituals (morning plan / evening reflection) ──────────────────────────
+router.get('/rituals/weekly', ritualsCtrl.getWeeklyReview);
+router.get('/rituals', ritualsCtrl.getRituals);
+router.get('/rituals/:date', ritualsCtrl.getRitual);
+router.put('/rituals/:date', ritualsCtrl.saveRitual);
 
 // ── Focus sessions + gamification ──────────────────────────────────────────────
 router.get('/focus', focusCtrl.getFocusSessions);

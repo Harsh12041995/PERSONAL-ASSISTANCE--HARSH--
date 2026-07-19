@@ -65,6 +65,29 @@ export const gamificationApi = {
     get: (): Promise<IGamification> => api.get('/gamification').then(data),
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DAILY RITUALS
+// ═══════════════════════════════════════════════════════════════════════════════
+export interface IRitual {
+    _id?: string; date: string;
+    morning: { intention: string; priorities: string[]; done: boolean };
+    evening: { wins: string[]; gratitude: string; tomorrow: string; rating: number; done: boolean };
+}
+export interface IRitualContext {
+    ritual: IRitual | null;
+    context: { tasks: ITask[]; events: ICalendarEvent[] };
+}
+export interface IWeeklyReview {
+    from: string; to: string; daysLogged: number; morningsPlanned: number;
+    eveningsReflected: number; avgRating: number;
+    wins: { date: string; win: string }[]; rituals: IRitual[];
+}
+export const ritualApi = {
+    getDay: (date: string): Promise<IRitualContext> => api.get(`/rituals/${date}`).then(data),
+    save: (date: string, d: Partial<IRitual>) => api.put(`/rituals/${date}`, d).then(data),
+    weekly: (): Promise<IWeeklyReview> => api.get('/rituals/weekly').then(data),
+};
+
 export interface IPushSub { endpoint: string; keys: { p256dh: string; auth: string }; }
 export const pushApi = {
     vapid: (): Promise<{ enabled: boolean; publicKey: string }> => api.get('/push/vapid').then(data),
