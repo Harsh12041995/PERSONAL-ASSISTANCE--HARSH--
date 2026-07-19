@@ -1,4 +1,7 @@
 // backend/server.js
+// Load .env before anything reads process.env (config/env.js validates at import).
+// No-op in prod/serverless where env vars are injected and no .env file exists.
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const pinoHttp = require('pino-http');
