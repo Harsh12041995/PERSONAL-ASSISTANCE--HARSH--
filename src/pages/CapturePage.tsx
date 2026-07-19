@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { captureApi, taskApi, goalApi, calendarApi, ICapture } from '../services/personalApi';
+import { captureApi, taskApi, goalApi, calendarApi, financeApi, ICapture } from '../services/personalApi';
 import { CAPTURE_TYPES, CaptureType, captureMeta } from '../constants/capture';
 import { localToday } from '../utils/date';
 import { notifyError } from '../utils/notify';
+import { parseSmartCapture, toLocalDate, toLocalDateTime } from '../utils/smartCapture';
 import VoiceTranscriber from '../components/VoiceTranscriber';
 
 const PAGE_SIZE = 30;
@@ -56,6 +57,46 @@ export default function CapturePage() {
             setTimeout(() => setSubmitted(false), 2000);
         } catch { setError('Failed to save.'); }
         finally { setSaving(false); }
+    };
+
+    // ── Smart Capture (NLP) ──────────────────────────────────────────────────
+    const [smartDismissed, setSmartDismissed] = useState(false);
+    const [smartBusy, setSmartBusy] = useState(false);
+    const smart = useMemo(() => parseSmartCapture(text), [text]);
+    // Only offer a suggestion once there's something meaningful to act on.
+    const showSmart = !smartDismissed && text.trim().length > 3 && smart.kind !== null;
+    // Reset the dismissal whenever the text changes materially.
+    useEffect(() => { setSmartDismissed(false); }, [text]);
+
+    const createSmart = async () => {
+        if (!smart.kind || smartBusy) return;
+        setSmartBusy(true);
+        try {
+            const title = smart.cleanText || text.trim();
+            if (smart.kind === 'event' && smart.date) {
+                await calendarApi.create({
+                    title, calendar: 'Primary', allDay: !smart.hasTime,
+                    start: smart.hasTime ? toLocalDateTime(smart.date) : toLocalDate(smart.date),
+                    end: smart.hasTime ? toLocalDateTime(smart.date) : toLocalDate(smart.date),
+                });
+                toast.success(`📅 Event created — ${smart.label.replace('📅 Event · ', '')}`);
+            } else if (smart.kind === 'task') {
+                await taskApi.create({
+                    title, priority: 'medium', area: 'Personal', tab: 'today', done: false,
+                    dueDate: smart.date ? toLocalDate(smart.date) : null,
+                });
+                toast.success('✅ Task created' + (smart.date ? ` — due ${toLocalDate(smart.date)}` : ''));
+            } else if (smart.kind === 'finance' && smart.amount !== null) {
+                await financeApi.create({
+                    type: smart.financeType, amount: smart.amount, category: smart.financeCategory,
+                    note: title, emoji: '💰', date: smart.date ? toLocalDate(smart.date) : localToday(),
+                    ...(smart.recurrence === 'weekly' || smart.recurrence === 'monthly' ? { recurrence: smart.recurrence } : {}),
+                });
+                toast.success(`💰 ${smart.financeType === 'income' ? 'Income' : 'Expense'} logged — ₹${smart.amount.toLocaleString('en-IN')}${smart.recurrence ? ` (${smart.recurrence})` : ''}`);
+            }
+            setText('');
+        } catch (e) { notifyError(e, 'Could not create from smart capture.'); }
+        finally { setSmartBusy(false); }
     };
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -156,6 +197,22 @@ export default function CapturePage() {
                         </button>
                     </div>
                 </form>
+
+                {/* Smart Capture suggestion */}
+                {showSmart && (
+                    <div className="mt-3 flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 animate-in fade-in">
+                        <span className="text-lg">✨</span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-violet-700">{smart.label}</p>
+                            <p className="text-xs text-gray-500 truncate">“{smart.cleanText}”</p>
+                        </div>
+                        <button onClick={createSmart} disabled={smartBusy}
+                            className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold whitespace-nowrap disabled:opacity-50">
+                            {smartBusy ? '…' : smart.kind === 'event' ? 'Add to calendar' : smart.kind === 'task' ? 'Create task' : 'Log it'}
+                        </button>
+                        <button onClick={() => setSmartDismissed(true)} title="Dismiss" className="text-gray-400 hover:text-gray-600 text-xs px-1">✕</button>
+                    </div>
+                )}
             </div>
 
             {/* Filter + List */}

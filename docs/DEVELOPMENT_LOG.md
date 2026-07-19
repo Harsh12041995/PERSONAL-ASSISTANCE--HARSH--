@@ -6,6 +6,20 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Phase 5.2: Smart Capture (chrono-node NLP) ([task.md](../task.md) Phase 5)
+
+Makes the capture box understand natural language. Branch `feat/phase-5-product`.
+
+### Added
+- **`utils/smartCapture.ts`** — `parseSmartCapture(text)` built on `chrono-node`: extracts a date/time (forward-dated), recurrence (`daily/weekly/monthly` from phrases like "monthly"/"every week"/"on the 1st"), and amount (₹/rs-marked, or a bare 3+ digit number when a money word is present), then decides the record type — **finance** (amount + money word/recurrence), **event** (date + time), or **task** (date only). Produces a stripped `cleanText` (date phrase, recurrence, currency tokens and leftover amount/prepositions removed) and a human label. TZ-safe `toLocalDate`/`toLocalDateTime` helpers.
+- **`CapturePage` suggestion banner** — as you type, an ✨ banner offers a one-tap action: *Add to calendar* (timed → datetime, dateless → all-day), *Create task* (with due date), or *Log it* (expense/income with category + recurrence). Dismissable; resets on edit.
+
+### Verification
+- Parser unit harness (esbuild-bundled, 8 phrases): event/task/finance/none classification **8/8 PASS**, incl. "gym tomorrow 6am"→event, "call Sam friday"→task, "rent 15000 monthly on the 1st"→monthly expense (clean="rent"), "salary 50000 monthly"→monthly income.
+- `corepack yarn build` green; eslint on touched files clean (the one remaining `CapturePage` `any` is the pre-existing baseline keyboard-handler cast, shifted from line 143→184 by the inserted code).
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 5.1: PWA — installable + offline + push ([task.md](../task.md) Phase 5)
 
 Turns the portal into a real mobile-installable app. Branch `feat/phase-5-product`.
