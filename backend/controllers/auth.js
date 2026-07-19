@@ -45,7 +45,7 @@ exports.register = async (req, res) => {
             first_name,
             last_name,
             email,
-            password, // Plain text for local simplicity as requested
+            password, // hashed by the User pre-save hook
             role: {
                 name: 'Asset Engineer',
                 permissions: [] // Add default permissions if needed
@@ -80,8 +80,9 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        // Check password (plain text comaprison for local dev)
-        if (user.password !== password) {
+        // Verify password (bcrypt; legacy plaintext rows upgrade on match).
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 

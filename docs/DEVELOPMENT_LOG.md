@@ -6,6 +6,20 @@ A running, reverse-chronological record of meaningful engineering changes. One e
 
 ---
 
+## [unreleased] — 2026-07-19 — Security: password hashing (bcrypt) + migration
+
+Closes the plaintext-password issue flagged across Phases 0 and 3. Branch `fix/security-and-phase-4`.
+
+### Security
+- `backend/models/User.js`: pre-save hook bcrypt-hashes the password on any change (skips values already hashed, so no double-hash); new `comparePassword()` verifies via `bcrypt.compare` and **transparently upgrades legacy plaintext rows to a hash on successful login** (migrate-on-login). Register (`User.create`) and the Phase-3 `change-password` endpoint now hash automatically via the hook.
+- `backend/controllers/auth.js` login: replaced `user.password !== password` with `await user.comparePassword(password)`.
+- `backend/scripts/hash-passwords.js`: idempotent one-shot migration to bulk-hash any remaining plaintext rows (belt-and-suspenders for users who don't log in soon). Run `cd backend && node scripts/hash-passwords.js`.
+
+### Verification
+- `node --check` on all three files. Runtime (scratch DB): hash-on-create (stored value is a `$2…` hash), compare correct→true / wrong→false, legacy plaintext row upgraded on compare and re-verifies against the new hash, migration script hashed a seeded plaintext row and skipped already-hashed ones. All PASS.
+
+---
+
 ## [unreleased] — 2026-07-19 — Phase 3: power features on existing rails ([task.md](../task.md) Phase 3)
 
 All 7 Phase 3 tasks on branch `fix/phase-3-power-features` (off Phase 2).
