@@ -42,6 +42,16 @@ export const AUTH_KEYFRAMES = `
 @keyframes li-sweep { 0% { transform: translateX(-120%) skewX(-18deg); } 55%,100% { transform: translateX(560%) skewX(-18deg); } }
 @keyframes li-orb1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(24px,-30px); } }
 @keyframes li-orb2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px,22px); } }
+@keyframes li-aura { 0%,100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+/* keep autofilled inputs on-theme (no yellow box) */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f1424;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.72) inset;
+  caret-color: #0f1424;
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="li-aura"], [style*="li-orb"], [style*="li-coinFloat"], [style*="li-shimmer"], [style*="li-sweep"] { animation: none !important; }
+}
 `;
 
 export default function AuthCosmicShell({ children, footer, cardWidth = 430 }: { children: ReactNode; footer?: ReactNode; cardWidth?: number }) {
@@ -80,7 +90,7 @@ export default function AuthCosmicShell({ children, footer, cardWidth = 430 }: {
   const onCardLeave = () => { if (cardRef.current) cardRef.current.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg)"; };
 
   return (
-    <div ref={rootRef} style={{ position: "relative", width: "100vw", minHeight: "100vh", overflow: "hidden", background: `#04030c url(${POSTER_WEBP}) center/cover no-repeat`, fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div ref={rootRef} style={{ position: "relative", width: "100vw", minHeight: "100vh", overflowX: "hidden", overflowY: "auto", background: `#04030c url(${POSTER_WEBP}) center/cover no-repeat`, fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{AUTH_KEYFRAMES}</style>
 
       <video ref={videoRef} src={LION_VIDEO} poster={POSTER_JPG} autoPlay loop muted playsInline preload="auto"
@@ -107,8 +117,9 @@ export default function AuthCosmicShell({ children, footer, cardWidth = 430 }: {
       {/* Card + aurora glow */}
       <div style={{ position: "relative", zIndex: 2, padding: "88px 20px 44px", width: "100%", display: "flex", justifyContent: "center" }} onMouseMove={onCardMove} onMouseLeave={onCardLeave}>
         <div style={{ position: "relative", width: cardWidth, maxWidth: "100%", animation: "li-cardIn 0.9s cubic-bezier(0.22,1,0.36,1) both" }}>
-          <div style={{ position: "absolute", inset: -2, borderRadius: 30, padding: 2, background: "conic-gradient(from 0deg, #0fce8e, #2f9df5, #8b5cf6, #c084fc, #0fce8e)", filter: "blur(14px)", opacity: 0.55, animation: "li-spin 12s linear infinite", pointerEvents: "none" }} />
-          <div ref={cardRef} style={{ position: "relative", borderRadius: 28, background: "rgba(14,12,26,0.44)", backdropFilter: "blur(30px) saturate(150%)", WebkitBackdropFilter: "blur(30px) saturate(150%)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.35)", padding: "34px clamp(22px,4vw,40px) 28px", transition: "transform 0.2s ease", willChange: "transform" }}>
+          {/* Soft breathing aura — two offset color blobs that gently pulse (no spin) */}
+          <div style={{ position: "absolute", inset: -60, borderRadius: "50%", background: "radial-gradient(45% 45% at 38% 32%, rgba(47,157,245,0.30), transparent 70%), radial-gradient(45% 45% at 66% 70%, rgba(139,92,246,0.26), transparent 70%)", filter: "blur(38px)", pointerEvents: "none", animation: "li-aura 9s ease-in-out infinite" }} />
+          <div ref={cardRef} style={{ position: "relative", borderRadius: 28, background: "rgba(14,12,26,0.44)", backdropFilter: "blur(30px) saturate(150%)", WebkitBackdropFilter: "blur(30px) saturate(150%)", border: "1px solid rgba(255,255,255,0.22)", boxShadow: "0 40px 100px rgba(0,0,0,0.6), 0 0 60px rgba(90,120,255,0.14), inset 0 1px 0 rgba(255,255,255,0.38)", padding: "34px clamp(22px,4vw,40px) 28px", transition: "transform 0.2s ease", willChange: "transform" }}>
             {children}
           </div>
           {footer && <div style={{ marginTop: 18, animation: "li-fadeUp 1s ease 0.4s both" }}>{footer}</div>}
