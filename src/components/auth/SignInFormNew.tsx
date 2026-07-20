@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../services/authService";
-
-const LION = "/images/login/lion-left.png";
+import Lion3D from "./Lion3D";
 
 // Feature chips shown on the left panel.
 const CHIPS: { label: string; icon: React.ReactNode }[] = [
@@ -72,12 +71,8 @@ export default function SignInFormNew() {
   const [sign, setSign] = useState<"idle" | "loading" | "done">("idle");
   const [errors, setErrors] = useState({ email: "", password: "", form: "" });
 
-  // Canvas + parallax refs.
+  // Canvas + card refs (starfield/constellation + card tilt).
   const panelRef = useRef<HTMLDivElement>(null);
-  const lionRef = useRef<HTMLDivElement>(null);
-  const eyeRef = useRef<HTMLDivElement>(null);
-  const pupilRef = useRef<HTMLDivElement>(null);
-  const maneRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -112,13 +107,6 @@ export default function SignInFormNew() {
         x: w * (0.3 + Math.random() * 0.68), y: h * (0.08 + Math.random() * 0.85),
         vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
       }));
-    };
-
-    const headPos = () => {
-      const lion = lionRef.current;
-      if (!lion) return { x: w * 0.8, y: h * 0.35, r: 300 };
-      const lr = lion.getBoundingClientRect(), pr = panel.getBoundingClientRect();
-      return { x: lr.left - pr.left + lr.width * 0.743, y: lr.top - pr.top + lr.height * 0.374, r: lr.height * 0.3 };
     };
 
     const draw = (t: number) => {
@@ -161,28 +149,10 @@ export default function SignInFormNew() {
 
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
-      const head = headPos();
-      const dist = Math.hypot(mx - head.x, my - head.y);
-      if (lionRef.current) {
-        const tx = mx > -999 ? (mx / w - 0.6) * 18 : 0;
-        const ty = my > -999 ? (my / h - 0.4) * 12 : 0;
-        px += (tx - px) * 0.045; py += (ty - py) * 0.045;
-        const swayX = Math.sin(t * 0.00042) * 6, swayY = Math.sin(t * 0.00058 + 1.3) * 4;
-        const rotY = px * 0.5 + Math.sin(t * 0.00031) * 2.6;
-        const rotX = -py * 0.4 + Math.cos(t * 0.00037) * 1.6;
-        lionRef.current.style.transform = `translate3d(${(px + swayX).toFixed(2)}px,${(py + swayY).toFixed(2)}px,0) rotateY(${rotY.toFixed(2)}deg) rotateX(${rotX.toFixed(2)}deg)`;
-      }
-      if (eyeRef.current) {
-        const near = Math.max(0, 1 - dist / (head.r * 2.2));
-        eyeRef.current.style.opacity = Math.min(1, 0.35 + near * 0.5).toFixed(2);
-        const eye = eyeRef.current.getBoundingClientRect(), pr = panel.getBoundingClientRect();
-        const ex = eye.left - pr.left + eye.width / 2, ey = eye.top - pr.top + eye.height / 2;
-        if (pupilRef.current) {
-          const vx = mx - ex, vy = my - ey, vd = Math.hypot(vx, vy) || 1, reach = Math.min(9, vd * 0.06);
-          pupilRef.current.style.transform = `translate(${((vx / vd) * reach).toFixed(1)}px,${((vy / vd) * reach).toFixed(1)}px)`;
-        }
-      }
-      if (maneRef.current) maneRef.current.style.opacity = (0.2 + Math.max(0, 1 - dist / (head.r * 2)) * 0.3).toFixed(2);
+      // Subtle starfield parallax follows the cursor.
+      const tx = mx > -999 ? (mx / w - 0.6) * 18 : 0;
+      const ty = my > -999 ? (my / h - 0.4) * 12 : 0;
+      px += (tx - px) * 0.045; py += (ty - py) * 0.045;
       draw(t);
     };
 
@@ -278,17 +248,15 @@ export default function SignInFormNew() {
 
       {/* ── Left panel ── */}
       <div ref={panelRef} style={{ flex: "1 1 auto", minWidth: 0, position: "relative", overflow: "hidden", background: "linear-gradient(180deg,#010107 0%,#000517 42%,#030418 70%,#0a0620 100%)", perspective: 1200 }}>
-        <div ref={lionRef} style={{ position: "absolute", top: 0, right: 0, height: "100%", aspectRatio: "686 / 1122", willChange: "transform", transformStyle: "preserve-3d" }}>
-          <div style={{ position: "absolute", left: "74%", top: "37%", width: "66%", aspectRatio: "1", border: "1px solid rgba(120,190,255,0.30)", borderRadius: "50%", boxShadow: "0 0 18px rgba(100,160,255,0.18) inset", animation: "li-orbitA 22s linear infinite", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: "74%", top: "37%", width: "80%", aspectRatio: "1", border: "1px dashed rgba(160,130,255,0.28)", borderRadius: "50%", animation: "li-orbitB 34s linear infinite", pointerEvents: "none" }} />
-          <img src={LION} alt="Mystical energy lion" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", animation: "li-breathe 7s ease-in-out infinite", WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 7%)", maskImage: "linear-gradient(to right, transparent 0%, black 7%)" }} />
-          <div ref={maneRef} style={{ position: "absolute", left: "74%", top: "38%", width: "62%", aspectRatio: "1", transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.30) 0%, rgba(59,130,246,0.12) 45%, transparent 70%)", mixBlendMode: "screen", opacity: 0.25, pointerEvents: "none" }} />
-          <div ref={eyeRef} style={{ position: "absolute", left: "70.4%", top: "32.6%", width: 46, height: 46, transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(120,220,255,0.85) 0%, rgba(56,150,255,0.35) 32%, transparent 65%)", mixBlendMode: "screen", opacity: 0.4, pointerEvents: "none", animation: "li-eyePulse 4.5s ease-in-out infinite" }}>
-            <div ref={pupilRef} style={{ position: "absolute", left: "50%", top: "50%", width: 8, height: 8, margin: "-4px 0 0 -4px", borderRadius: "50%", background: "radial-gradient(circle,#eafcff,#6fd6ff 60%,transparent 100%)", boxShadow: "0 0 8px 2px rgba(150,225,255,0.9)" }} />
-          </div>
-          <div style={{ position: "absolute", left: "83.8%", top: "83.5%", width: 140, height: 44, transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(147,92,246,0.5) 0%, transparent 65%)", mixBlendMode: "screen", animation: "li-portalGlow 5s ease-in-out infinite", pointerEvents: "none" }} />
+        {/* 3D energy-lion (WebGL point cloud) + ambient tech rings behind it */}
+        <div style={{ position: "absolute", top: 0, right: 0, height: "100%", aspectRatio: "686 / 1122", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", left: "60%", top: "34%", width: "70%", aspectRatio: "1", transform: "translate(-50%,-50%)", border: "1px solid rgba(120,190,255,0.22)", borderRadius: "50%", boxShadow: "0 0 18px rgba(100,160,255,0.14) inset", animation: "li-orbitA 22s linear infinite" }} />
+          <div style={{ position: "absolute", left: "60%", top: "34%", width: "88%", aspectRatio: "1", transform: "translate(-50%,-50%)", border: "1px dashed rgba(160,130,255,0.20)", borderRadius: "50%", animation: "li-orbitB 34s linear infinite" }} />
+          <div style={{ position: "absolute", left: "60%", top: "40%", width: "78%", aspectRatio: "1", transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.22) 0%, rgba(59,130,246,0.10) 45%, transparent 70%)", mixBlendMode: "screen" }} />
+          <div style={{ position: "absolute", left: "83.8%", top: "86%", width: 150, height: 46, transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(147,92,246,0.5) 0%, transparent 65%)", mixBlendMode: "screen", animation: "li-portalGlow 5s ease-in-out infinite" }} />
+          <Lion3D />
         </div>
-        <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 3, pointerEvents: "none" }} />
+        <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 1, pointerEvents: "none" }} />
 
         {/* Foreground content */}
         <div style={{ position: "absolute", inset: 0, zIndex: 5, display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "clamp(14px,3.2vh,36px) 36px", pointerEvents: "none" }}>
