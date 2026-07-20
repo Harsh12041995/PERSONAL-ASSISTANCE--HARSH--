@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../services/authService";
-import Lion3D from "./Lion3D";
+
+const LION_VIDEO = "/videos/lion-cosmic.mp4";
+const LION_POSTER = "/images/login/lion-poster.jpg";
 
 // Feature chips shown on the left panel.
 const CHIPS: { label: string; icon: React.ReactNode }[] = [
@@ -56,9 +58,6 @@ const CHIPS: { label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-interface Star { x: number; y: number; r: number; p: number; s: number; hue: number; z: number }
-interface Node { x: number; y: number; vx: number; vy: number }
-
 export default function SignInFormNew() {
   const navigate = useNavigate();
   const { login, user: authUser, token, isLoading: authLoading, isInitialized } = useAuth();
@@ -71,113 +70,42 @@ export default function SignInFormNew() {
   const [sign, setSign] = useState<"idle" | "loading" | "done">("idle");
   const [errors, setErrors] = useState({ email: "", password: "", form: "" });
 
-  // Canvas + card refs (starfield/constellation + card tilt).
   const panelRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (token && authUser && isInitialized) navigate("/");
   }, [token, authUser, isInitialized, navigate]);
 
-  // ── Ambient scene: starfield + constellation + lion parallax/eye tracking ──
+  // Subtle parallax: the cosmic lion drifts toward the cursor.
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const cv = canvasRef.current;
     const panel = panelRef.current;
-    if (!cv || !panel) return;
-
-    let w = 0, h = 0, dpr = 1;
-    let stars: Star[] = [];
-    let nodes: Node[] = [];
-    let mx = -9999, my = -9999, px = 0, py = 0;
-    let raf = 0;
-
-    const initCanvas = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = panel.clientWidth; h = panel.clientHeight;
-      cv.width = w * dpr; cv.height = h * dpr;
-      stars = Array.from({ length: 120 }, () => ({
-        x: Math.random() * w, y: Math.random() * h,
-        r: 0.4 + Math.random() * 1.1, p: Math.random() * Math.PI * 2,
-        s: 0.02 + Math.random() * 0.06, hue: Math.random() < 0.7 ? 250 : 200,
-        z: 0.25 + Math.random() * 0.75,
-      }));
-      nodes = Array.from({ length: 24 }, () => ({
-        x: w * (0.3 + Math.random() * 0.68), y: h * (0.08 + Math.random() * 0.85),
-        vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
-      }));
+    const video = videoRef.current;
+    if (!panel || !video) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
+    const onMove = (e: PointerEvent) => {
+      const r = panel.getBoundingClientRect();
+      tx = ((e.clientX - r.left) / r.width - 0.5) * -26;
+      ty = ((e.clientY - r.top) / r.height - 0.5) * -18;
     };
-
-    const draw = (t: number) => {
-      const x = cv.getContext("2d");
-      if (!x) return;
-      x.setTransform(dpr, 0, 0, dpr, 0, 0);
-      x.clearRect(0, 0, w, h);
-      const time = t * 0.001;
-      for (const s of stars) {
-        s.x -= s.s * 0.4; s.y -= s.s * 0.2;
-        if (s.x < -2) s.x = w + 2;
-        if (s.y < -2) s.y = h + 2;
-        const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * 1.4 + s.p));
-        x.globalAlpha = tw * 0.8;
-        x.fillStyle = s.hue === 250 ? "#b9a8ff" : "#8fd2ff";
-        x.beginPath(); x.arc(s.x - px * s.z * 2.2, s.y - py * s.z * 2.2, s.r * (0.6 + s.z * 0.6), 0, 6.284); x.fill();
-      }
-      x.globalAlpha = 1;
-      for (const n of nodes) {
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 0 || n.x > w) n.vx *= -1;
-        if (n.y < 0 || n.y > h) n.vy *= -1;
-        const d = Math.hypot(n.x - mx, n.y - my);
-        if (d < 110 && d > 0.1) { const f = ((110 - d) / 110) * 0.9; n.x += ((n.x - mx) / d) * f; n.y += ((n.y - my) / d) * f; }
-      }
-      x.lineWidth = 0.7;
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        for (let j = i + 1; j < nodes.length; j++) {
-          const b = nodes[j];
-          const d = Math.hypot(a.x - b.x, a.y - b.y);
-          if (d < 140) { x.globalAlpha = (1 - d / 140) * 0.35; x.strokeStyle = "#8b7cf6"; x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke(); }
-        }
-        const dm = Math.hypot(a.x - mx, a.y - my);
-        if (dm < 160) { x.globalAlpha = (1 - dm / 160) * 0.45; x.strokeStyle = "#7dd3fc"; x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(mx, my); x.stroke(); }
-        x.globalAlpha = 0.85; x.fillStyle = "#c4b5fd"; x.beginPath(); x.arc(a.x, a.y, 1.6, 0, 6.284); x.fill();
-      }
-      x.globalAlpha = 1;
+    const onLeave = () => { tx = 0; ty = 0; };
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      cx += (tx - cx) * 0.06; cy += (ty - cy) * 0.06;
+      video.style.transform = `scale(1.12) translate(${cx.toFixed(2)}px, ${cy.toFixed(2)}px)`;
     };
-
-    const tick = (t: number) => {
-      raf = requestAnimationFrame(tick);
-      // Subtle starfield parallax follows the cursor.
-      const tx = mx > -999 ? (mx / w - 0.6) * 18 : 0;
-      const ty = my > -999 ? (my / h - 0.4) * 12 : 0;
-      px += (tx - px) * 0.045; py += (ty - py) * 0.045;
-      draw(t);
-    };
-
-    const onMove = (e: MouseEvent) => {
-      const pr = panel.getBoundingClientRect();
-      mx = e.clientX - pr.left; my = e.clientY - pr.top;
-    };
-    const onLeave = () => { mx = -9999; my = -9999; };
-    const onResize = () => initCanvas();
-
-    initCanvas();
-    panel.addEventListener("mousemove", onMove);
-    panel.addEventListener("mouseleave", onLeave);
-    window.addEventListener("resize", onResize);
-    if (reduced) draw(0); else raf = requestAnimationFrame(tick);
-
+    panel.addEventListener("pointermove", onMove);
+    panel.addEventListener("pointerleave", onLeave);
+    raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
-      panel.removeEventListener("mousemove", onMove);
-      panel.removeEventListener("mouseleave", onLeave);
-      window.removeEventListener("resize", onResize);
+      panel.removeEventListener("pointermove", onMove);
+      panel.removeEventListener("pointerleave", onLeave);
     };
   }, []);
 
-  // Card tilt toward the cursor.
   const onCardMove = (e: React.MouseEvent) => {
     if (!cardRef.current) return;
     const r = cardRef.current.getBoundingClientRect();
@@ -246,36 +174,40 @@ export default function SignInFormNew() {
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#04030c", fontFamily: "'Manrope', system-ui, sans-serif" }}>
       <style>{KEYFRAMES}</style>
 
-      {/* ── Left panel ── */}
-      <div ref={panelRef} style={{ flex: "1 1 auto", minWidth: 0, position: "relative", overflow: "hidden", background: "linear-gradient(180deg,#010107 0%,#000517 42%,#030418 70%,#0a0620 100%)", perspective: 1200 }}>
-        {/* 3D energy-lion (WebGL point cloud) + ambient tech rings behind it */}
-        <div style={{ position: "absolute", top: 0, right: 0, height: "100%", aspectRatio: "686 / 1122", pointerEvents: "none" }}>
-          <div style={{ position: "absolute", left: "60%", top: "34%", width: "70%", aspectRatio: "1", transform: "translate(-50%,-50%)", border: "1px solid rgba(120,190,255,0.22)", borderRadius: "50%", boxShadow: "0 0 18px rgba(100,160,255,0.14) inset", animation: "li-orbitA 22s linear infinite" }} />
-          <div style={{ position: "absolute", left: "60%", top: "34%", width: "88%", aspectRatio: "1", transform: "translate(-50%,-50%)", border: "1px dashed rgba(160,130,255,0.20)", borderRadius: "50%", animation: "li-orbitB 34s linear infinite" }} />
-          <div style={{ position: "absolute", left: "60%", top: "40%", width: "78%", aspectRatio: "1", transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.22) 0%, rgba(59,130,246,0.10) 45%, transparent 70%)", mixBlendMode: "screen" }} />
-          <div style={{ position: "absolute", left: "83.8%", top: "86%", width: 150, height: 46, transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(147,92,246,0.5) 0%, transparent 65%)", mixBlendMode: "screen", animation: "li-portalGlow 5s ease-in-out infinite" }} />
-          <Lion3D />
-        </div>
-        <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 1, pointerEvents: "none" }} />
+      {/* ── Left panel: animated cosmic-lion video ── */}
+      <div ref={panelRef} style={{ flex: "1 1 auto", minWidth: 0, position: "relative", overflow: "hidden", background: "#04030c" }}>
+        <video
+          ref={videoRef}
+          src={LION_VIDEO}
+          poster={LION_POSTER}
+          autoPlay
+          loop
+          muted
+          playsInline
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.12)", willChange: "transform" }}
+        />
+        {/* Left-edge darkening so the text stays readable over the scene */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(4,3,12,0.92) 0%, rgba(4,3,12,0.55) 28%, rgba(4,3,12,0.12) 52%, rgba(4,3,12,0) 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,3,12,0.5) 0%, rgba(4,3,12,0) 25%, rgba(4,3,12,0) 70%, rgba(4,3,12,0.55) 100%)", pointerEvents: "none" }} />
 
         {/* Foreground content */}
         <div style={{ position: "absolute", inset: 0, zIndex: 5, display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "clamp(14px,3.2vh,36px) 36px", pointerEvents: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 46, height: 46, borderRadius: 13, background: "linear-gradient(145deg,#1b1633,#0e0a22)", border: "1px solid rgba(150,130,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", color: "#efecff", fontWeight: 800, fontSize: 16, letterSpacing: 0.5, boxShadow: "0 0 22px rgba(124,92,246,0.35)", animation: "li-coinFloat 5s ease-in-out infinite" }}>PA</div>
-            <div style={{ color: "#eceafb", fontSize: 16.5, fontWeight: 600 }}>Personal Assistance</div>
+            <div style={{ color: "#eceafb", fontSize: 16.5, fontWeight: 600, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>Personal Assistance</div>
           </div>
 
           <div style={{ width: 400, maxWidth: "min(62%, calc(100% - 20px))", marginTop: "clamp(10px,7vh,100px)" }}>
-            <h1 style={{ margin: 0, color: "#f3f1fc", fontSize: "clamp(22px, min(3.6vw,4.8vh), 45px)", lineHeight: 1.18, fontWeight: 800, letterSpacing: "-0.5px" }}>
+            <h1 style={{ margin: 0, color: "#f3f1fc", fontSize: "clamp(22px, min(3.6vw,4.8vh), 45px)", lineHeight: 1.18, fontWeight: 800, letterSpacing: "-0.5px", textShadow: "0 2px 24px rgba(0,0,0,0.6)" }}>
               Organize your day with one{" "}
               <span style={{ background: "linear-gradient(90deg,#a78bfa,#60a5fa,#c084fc,#a78bfa)", backgroundSize: "200% 100%", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", animation: "li-shimmer 6s linear infinite" }}>command</span> center
             </h1>
-            <p style={{ margin: "clamp(10px,2.4vh,22px) 0 0", color: "#a9a5c2", fontSize: "clamp(13px,1.8vh,15.5px)", lineHeight: 1.7, fontWeight: 500, maxWidth: 320 }}>Manage goals, finances, tasks, and notes in one place with a faster and clearer workflow.</p>
+            <p style={{ margin: "clamp(10px,2.4vh,22px) 0 0", color: "#c7c3dc", fontSize: "clamp(13px,1.8vh,15.5px)", lineHeight: 1.7, fontWeight: 500, maxWidth: 320, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>Manage goals, finances, tasks, and notes in one place with a faster and clearer workflow.</p>
           </div>
 
           <div style={{ width: 400, maxWidth: "min(400px, calc(100% - 12px))", marginTop: "clamp(12px,4vh,56px)", display: "flex", flexWrap: "wrap", gap: "clamp(8px,1.4vh,13px)" }}>
             {CHIPS.map((c) => (
-              <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 9, padding: "clamp(6px,1.2vh,10px) clamp(13px,1.6vw,19px)", borderRadius: 999, border: "1px solid rgba(145,125,255,0.32)", background: "rgba(18,12,42,0.55)", backdropFilter: "blur(6px)", color: "#e9e6f8", fontSize: "clamp(12.5px,1.7vh,14px)", fontWeight: 600 }}>
+              <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 9, padding: "clamp(6px,1.2vh,10px) clamp(13px,1.6vw,19px)", borderRadius: 999, border: "1px solid rgba(145,125,255,0.32)", background: "rgba(18,12,42,0.5)", backdropFilter: "blur(6px)", color: "#e9e6f8", fontSize: "clamp(12.5px,1.7vh,14px)", fontWeight: 600 }}>
                 {c.icon}{c.label}
               </div>
             ))}
@@ -285,10 +217,10 @@ export default function SignInFormNew() {
             <div style={{ display: "flex", gap: 14 }}>
               <div style={{ color: "#7c6cf5", fontSize: 40, fontWeight: 800, lineHeight: 0.8, textShadow: "0 0 18px rgba(124,108,245,0.6)" }}>&ldquo;</div>
               <div>
-                <p style={{ margin: 0, color: "#cfcbe6", fontSize: "clamp(13px,1.9vh,15.5px)", lineHeight: 1.6, fontStyle: "italic", fontWeight: 500, maxWidth: 336 }}>
+                <p style={{ margin: 0, color: "#dedaef", fontSize: "clamp(13px,1.9vh,15.5px)", lineHeight: 1.6, fontStyle: "italic", fontWeight: 500, maxWidth: 336, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>
                   You do not rise to the level of your goals.<br />You fall to the level of your systems.
                 </p>
-                <p style={{ margin: "12px 0 0", color: "#8b86a8", fontSize: 13, fontWeight: 600 }}>&ndash; James Clear</p>
+                <p style={{ margin: "12px 0 0", color: "#a49fc0", fontSize: 13, fontWeight: 600, textShadow: "0 2px 10px rgba(0,0,0,0.7)" }}>&ndash; James Clear</p>
               </div>
             </div>
           </div>
@@ -389,16 +321,10 @@ const socialBtn: React.CSSProperties = {
 };
 
 const KEYFRAMES = `
-@keyframes li-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.014); } }
 @keyframes li-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-@keyframes li-eyePulse { 0%,100% { opacity: 0.55; transform: translate(-50%,-50%) scale(1); } 50% { opacity: 0.95; transform: translate(-50%,-50%) scale(1.18); } }
-@keyframes li-orbitDot { to { transform: rotate(360deg); } }
 @keyframes li-coinFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
 @keyframes li-pageTilt { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
 @keyframes li-checkPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @keyframes li-heartbeat { 0%,100% { transform: scale(1); } 14% { transform: scale(1.28); } 28% { transform: scale(1); } 42% { transform: scale(1.18); } 56% { transform: scale(1); } }
 @keyframes li-spin { to { transform: rotate(360deg); } }
-@keyframes li-portalGlow { 0%,100% { opacity: 0.35; } 50% { opacity: 0.8; } }
-@keyframes li-orbitA { from { transform: translate(-50%,-50%) rotateX(72deg) rotateZ(0deg); } to { transform: translate(-50%,-50%) rotateX(72deg) rotateZ(360deg); } }
-@keyframes li-orbitB { from { transform: translate(-50%,-50%) rotateX(64deg) rotateY(-14deg) rotateZ(360deg); } to { transform: translate(-50%,-50%) rotateX(64deg) rotateY(-14deg) rotateZ(0deg); } }
 `;
